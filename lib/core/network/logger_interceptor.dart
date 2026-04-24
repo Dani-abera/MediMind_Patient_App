@@ -28,19 +28,28 @@ class LoggerInterceptor extends Interceptor {
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
-    if (kDebugMode) _logger.onRequest(options, handler);
-    else handler.next(options);
+    if (kDebugMode) {
+      _logger.onRequest(options, handler);
+    } else {
+      handler.next(options);
+    }
   }
 
   @override
   void onResponse(Response response, ResponseInterceptorHandler handler) {
-    if (kDebugMode) _logger.onResponse(response, handler);
-    else handler.next(response);
+    if (kDebugMode) {
+      _logger.onResponse(response, handler);
+    } else {
+      handler.next(response);
+    }
   }
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
-    if (kDebugMode) _logger.onError(err, handler);
-    else handler.next(err);
+    if (kDebugMode) {
+      _logger.onError(err, handler);
+    } else {
+      handler.next(err);
+    }
   }
 }

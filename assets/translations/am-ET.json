@@ -1,0 +1,48 @@
+{
+  "app": {
+    "name": "ሜዲማይንድ",
+    "tagline": "ጤናዎ፣ ቀላል ሆነ"
+  },
+  "common": {
+    "ok": "እሺ",
+    "cancel": "ሰርዝ",
+    "retry": "እንደገና ሞክር",
+    "loading": "በመጫን ላይ...",
+    "error": "ችግር ተፈጥሯል",
+    "save": "አስቀምጥ",
+    "delete": "ሰርዝ",
+    "edit": "አስተካክል",
+    "back": "ተመለስ",
+    "next": "ቀጣይ",
+    "done": "ተጠናቋል",
+    "skip": "ዝለል",
+    "yes": "አዎ",
+    "no": "አይደለም",
+    "search": "ፈልግ",
+    "filter": "አጣራ",
+    "clear": "አጽዳ",
+    "close": "ዝጋ",
+    "confirm": "አረጋግጥ",
+    "submit": "ላክ",
+    "continue": "ቀጥል",
+    "noData": "ምንም ውሂብ የለም",
+    "tryAgain": "እንደገና ሞክር"
+  },
+  "auth": {
+    "phoneTitle": "ስልክ ቁጥርዎን ያስገቡ",
+    "phoneSubtitle": "ማረጋገጫ ኮድ ወደ ቁጥርዎ እንልካለን",
+    "otpTitle": "ቁጥርዎን ያረጋግጡ",
+    "otpSubtitle": "ወደ {phone} የተላከውን 6-አሃዝ ኮድ ያስገቡ",
+    "resendCode": "ኮድ እንደገና ላክ",
+    "resendIn": "በ {seconds} ሰኮንድ ውስጥ እንደገና ላክ",
+    "signIn": "ግባ",
+    "signOut": "ውጣ"
+  },
+  "errors": {
+    "network": "የኢንተርኔት ግንኙነት የለም። እባክዎ እንደገና ሞክሩ።",
+    "server": "የሰርቨር ስህተት። እባክዎ ቆይተው ይሞክሩ።",
+    "unauthorized": "ክፍለ ጊዜ አልቋል። እባክዎ እንደገና ይግቡ።",
+    "notFound": "የሚፈለገው ሀብት አልተገኘም።",
+    "validation": "ግብዓቶን ያረጋግጡ እና እንደገና ይሞክሩ።"
+  }
+}

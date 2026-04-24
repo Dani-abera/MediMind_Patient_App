@@ -1,0 +1,48 @@
+{
+  "app": {
+    "name": "MediMind",
+    "tagline": "Your Health, Simplified"
+  },
+  "common": {
+    "ok": "OK",
+    "cancel": "Cancel",
+    "retry": "Retry",
+    "loading": "Loading...",
+    "error": "Something went wrong",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "back": "Back",
+    "next": "Next",
+    "done": "Done",
+    "skip": "Skip",
+    "yes": "Yes",
+    "no": "No",
+    "search": "Search",
+    "filter": "Filter",
+    "clear": "Clear",
+    "close": "Close",
+    "confirm": "Confirm",
+    "submit": "Submit",
+    "continue": "Continue",
+    "noData": "No data available",
+    "tryAgain": "Try Again"
+  },
+  "auth": {
+    "phoneTitle": "Enter your phone number",
+    "phoneSubtitle": "We'll send a verification code to your number",
+    "otpTitle": "Verify your number",
+    "otpSubtitle": "Enter the 6-digit code sent to {phone}",
+    "resendCode": "Resend code",
+    "resendIn": "Resend in {seconds}s",
+    "signIn": "Sign In",
+    "signOut": "Sign Out"
+  },
+  "errors": {
+    "network": "No internet connection. Please try again.",
+    "server": "Server error. Please try again later.",
+    "unauthorized": "Session expired. Please sign in again.",
+    "notFound": "The requested resource was not found.",
+    "validation": "Please check your input and try again."
+  }
+}
