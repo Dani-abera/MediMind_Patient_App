@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'core/di/service_locator.dart';
+import 'features/auth/auth_injection.dart';
 
 Future<void> bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,6 +19,8 @@ Future<void> bootstrap() async {
   await Hive.initFlutter();
 
   await initDependencies();
+
+  await initAuthFeature(sl);
 
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,

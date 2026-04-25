@@ -1,157 +1,206 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import '../../features/auth/presentation/bloc/auth/auth_bloc.dart';
+import '../../features/auth/presentation/bloc/auth/auth_state.dart';
+import '../../features/auth/presentation/bloc/otp/otp_bloc.dart';
+import '../../features/auth/presentation/bloc/register/register_bloc.dart';
+import '../../features/auth/presentation/pages/onboarding_page.dart';
+import '../../features/auth/presentation/pages/otp_verification_page.dart';
+import '../../features/auth/presentation/pages/phone_entry_page.dart';
+import '../../features/auth/presentation/pages/profile_completion_page.dart';
+import '../../features/auth/presentation/pages/splash_page.dart';
 import '../di/service_locator.dart';
-import '../storage/secure_storage.dart';
 import 'route_names.dart';
 
 class AppRouter {
   AppRouter._();
 
+  static final _rootNavKey = GlobalKey<NavigatorState>();
+  static final _otpShellKey = GlobalKey<NavigatorState>();
+
   static GoRouter get config => _router;
 
-  static final GoRouter _router = GoRouter(
+  static final _router = GoRouter(
+    navigatorKey: _rootNavKey,
     initialLocation: '/',
     redirect: _globalRedirect,
+    refreshListenable: _AuthStateListenable(sl<AuthBloc>()),
     routes: [
+      // ── Splash & Onboarding ───────────────────────────────────────────
       GoRoute(
         name: RouteNames.splash,
         path: '/',
-        builder: (_, __) => _Placeholder(RouteNames.splash),
+        pageBuilder: (_, __) => const NoTransitionPage(child: SplashPage()),
       ),
       GoRoute(
         name: RouteNames.onboarding,
         path: '/onboarding',
-        builder: (_, __) => _Placeholder(RouteNames.onboarding),
+        pageBuilder: (_, __) => const MaterialPage(child: OnboardingPage()),
       ),
-      GoRoute(
-        name: RouteNames.phoneEntry,
-        path: '/auth/phone',
-        builder: (_, __) => _Placeholder(RouteNames.phoneEntry),
+
+      // ── OTP Auth Shell: PhoneEntry + OtpVerification share one OtpBloc ──
+      ShellRoute(
+        navigatorKey: _otpShellKey,
+        builder: (context, state, child) => BlocProvider<OtpBloc>(
+          create: (_) => sl<OtpBloc>(),
+          child: child,
+        ),
+        routes: [
+          GoRoute(
+            name: RouteNames.phoneEntry,
+            path: '/auth/phone',
+            pageBuilder: (_, __) =>
+                const MaterialPage(child: PhoneEntryPage()),
+          ),
+          GoRoute(
+            name: RouteNames.otpVerification,
+            path: '/auth/otp',
+            pageBuilder: (_, state) {
+              final phoneNumber = state.extra as String? ?? '';
+              return MaterialPage(
+                child: OtpVerificationPage(phoneNumber: phoneNumber),
+              );
+            },
+          ),
+        ],
       ),
-      GoRoute(
-        name: RouteNames.otpVerification,
-        path: '/auth/otp',
-        builder: (_, __) => _Placeholder(RouteNames.otpVerification),
-      ),
+
+      // ── Profile Completion ────────────────────────────────────────────
       GoRoute(
         name: RouteNames.profileCompletion,
         path: '/auth/profile-completion',
-        builder: (_, __) => _Placeholder(RouteNames.profileCompletion),
+        pageBuilder: (_, state) {
+          final phoneNumber = state.extra as String? ?? '';
+          return MaterialPage(
+            child: BlocProvider(
+              create: (_) => sl<RegisterBloc>(),
+              child: ProfileCompletionPage(phoneNumber: phoneNumber),
+            ),
+          );
+        },
       ),
+
+      // ── App ───────────────────────────────────────────────────────────
       GoRoute(
         name: RouteNames.home,
         path: '/home',
-        builder: (_, __) => _Placeholder(RouteNames.home),
+        builder: (_, __) => const _Placeholder(RouteNames.home),
       ),
       GoRoute(
         name: RouteNames.book,
         path: '/book',
-        builder: (_, __) => _Placeholder(RouteNames.book),
+        builder: (_, __) => const _Placeholder(RouteNames.book),
       ),
       GoRoute(
         name: RouteNames.health,
         path: '/health',
-        builder: (_, __) => _Placeholder(RouteNames.health),
+        builder: (_, __) => const _Placeholder(RouteNames.health),
       ),
       GoRoute(
         name: RouteNames.profile,
         path: '/profile',
-        builder: (_, __) => _Placeholder(RouteNames.profile),
+        builder: (_, __) => const _Placeholder(RouteNames.profile),
       ),
       GoRoute(
         name: RouteNames.searchDoctors,
         path: '/book/search',
-        builder: (_, __) => _Placeholder(RouteNames.searchDoctors),
+        builder: (_, __) => const _Placeholder(RouteNames.searchDoctors),
       ),
       GoRoute(
         name: RouteNames.doctorDetail,
         path: '/book/doctor/:id',
-        builder: (_, state) => _Placeholder('${RouteNames.doctorDetail}/${state.pathParameters['id']}'),
+        builder: (_, state) => _Placeholder(
+          '${RouteNames.doctorDetail}/${state.pathParameters['id']}',
+        ),
       ),
       GoRoute(
         name: RouteNames.appointmentSlots,
         path: '/book/slots',
-        builder: (_, __) => _Placeholder(RouteNames.appointmentSlots),
+        builder: (_, __) => const _Placeholder(RouteNames.appointmentSlots),
       ),
       GoRoute(
         name: RouteNames.appointmentConfirm,
         path: '/book/confirm',
-        builder: (_, __) => _Placeholder(RouteNames.appointmentConfirm),
+        builder: (_, __) =>
+            const _Placeholder(RouteNames.appointmentConfirm),
       ),
       GoRoute(
         name: RouteNames.appointmentSuccess,
         path: '/book/success',
-        builder: (_, __) => _Placeholder(RouteNames.appointmentSuccess),
+        builder: (_, __) =>
+            const _Placeholder(RouteNames.appointmentSuccess),
       ),
       GoRoute(
         name: RouteNames.myAppointments,
         path: '/appointments',
-        builder: (_, __) => _Placeholder(RouteNames.myAppointments),
+        builder: (_, __) => const _Placeholder(RouteNames.myAppointments),
       ),
       GoRoute(
         name: RouteNames.appointmentDetail,
         path: '/appointments/:id',
-        builder: (_, __) => _Placeholder(RouteNames.appointmentDetail),
+        builder: (_, __) =>
+            const _Placeholder(RouteNames.appointmentDetail),
       ),
       GoRoute(
         name: RouteNames.healthRecords,
         path: '/health/records',
-        builder: (_, __) => _Placeholder(RouteNames.healthRecords),
+        builder: (_, __) => const _Placeholder(RouteNames.healthRecords),
       ),
       GoRoute(
         name: RouteNames.recordDetail,
         path: '/health/records/:id',
-        builder: (_, __) => _Placeholder(RouteNames.recordDetail),
+        builder: (_, __) => const _Placeholder(RouteNames.recordDetail),
       ),
       GoRoute(
         name: RouteNames.uploadRecord,
         path: '/health/records/upload',
-        builder: (_, __) => _Placeholder(RouteNames.uploadRecord),
+        builder: (_, __) => const _Placeholder(RouteNames.uploadRecord),
       ),
       GoRoute(
         name: RouteNames.videoCall,
         path: '/call/:id',
-        builder: (_, __) => _Placeholder(RouteNames.videoCall),
+        builder: (_, __) => const _Placeholder(RouteNames.videoCall),
       ),
       GoRoute(
         name: RouteNames.editProfile,
         path: '/profile/edit',
-        builder: (_, __) => _Placeholder(RouteNames.editProfile),
+        builder: (_, __) => const _Placeholder(RouteNames.editProfile),
       ),
       GoRoute(
         name: RouteNames.settings,
         path: '/profile/settings',
-        builder: (_, __) => _Placeholder(RouteNames.settings),
+        builder: (_, __) => const _Placeholder(RouteNames.settings),
       ),
       GoRoute(
         name: RouteNames.notifications,
         path: '/profile/notifications',
-        builder: (_, __) => _Placeholder(RouteNames.notifications),
+        builder: (_, __) => const _Placeholder(RouteNames.notifications),
       ),
       GoRoute(
         name: RouteNames.pharmacy,
         path: '/pharmacy',
-        builder: (_, __) => _Placeholder(RouteNames.pharmacy),
+        builder: (_, __) => const _Placeholder(RouteNames.pharmacy),
       ),
       GoRoute(
         name: RouteNames.qrScanner,
         path: '/scanner',
-        builder: (_, __) => _Placeholder(RouteNames.qrScanner),
+        builder: (_, __) => const _Placeholder(RouteNames.qrScanner),
       ),
       GoRoute(
         name: RouteNames.webViewer,
         path: '/web',
-        builder: (_, __) => _Placeholder(RouteNames.webViewer),
+        builder: (_, __) => const _Placeholder(RouteNames.webViewer),
       ),
       GoRoute(
         name: RouteNames.pdfViewer,
         path: '/pdf',
-        builder: (_, __) => _Placeholder(RouteNames.pdfViewer),
+        builder: (_, __) => const _Placeholder(RouteNames.pdfViewer),
       ),
     ],
   );
 
-  static final _publicRoutes = {
+  static const _publicPaths = {
     '/',
     '/onboarding',
     '/auth/phone',
@@ -163,14 +212,30 @@ class AppRouter {
     BuildContext context,
     GoRouterState state,
   ) async {
-    final isPublic = _publicRoutes.any(
-      (path) => state.matchedLocation.startsWith(path),
+    final isPublic = _publicPaths.any(
+      (path) =>
+          state.matchedLocation == path ||
+          state.matchedLocation.startsWith('$path/'),
     );
     if (isPublic) return null;
 
-    final token = await sl<SecureStorage>().getAccessToken();
-    if (token == null) return '/auth/phone';
+    final authState = context.read<AuthBloc>().state;
+    if (authState is Unauthenticated) return '/auth/phone';
     return null;
+  }
+}
+
+class _AuthStateListenable extends ChangeNotifier {
+  _AuthStateListenable(AuthBloc bloc) {
+    _sub = bloc.stream.listen((_) => notifyListeners());
+  }
+
+  late final dynamic _sub;
+
+  @override
+  void dispose() {
+    _sub.cancel();
+    super.dispose();
   }
 }
 
@@ -181,10 +246,7 @@ class _Placeholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Scaffold(
         body: Center(
-          child: Text(
-            routeName,
-            style: const TextStyle(fontSize: 20),
-          ),
+          child: Text(routeName, style: const TextStyle(fontSize: 20)),
         ),
       );
 }
