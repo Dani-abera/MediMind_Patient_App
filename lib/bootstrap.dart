@@ -6,6 +6,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'core/di/service_locator.dart';
 import 'features/auth/auth_injection.dart';
+import 'features/home/home_injection.dart';
+import 'features/notifications/notifications_injection.dart';
 
 Future<void> bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,6 +23,8 @@ Future<void> bootstrap() async {
   await initDependencies();
 
   await initAuthFeature(sl);
+  initHomeFeature(sl);
+  initNotificationsFeature(sl);
 
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,

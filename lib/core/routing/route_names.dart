@@ -30,6 +30,9 @@ class RouteNames {
   static const String labResults = 'labResults';
   static const String prescriptions = 'prescriptions';
 
+  // Notifications
+  static const String notifications = 'notifications';
+
   // Telemedicine
   static const String videoCall = 'videoCall';
   static const String callSummary = 'callSummary';
@@ -37,7 +40,6 @@ class RouteNames {
   // Profile
   static const String editProfile = 'editProfile';
   static const String settings = 'settings';
-  static const String notifications = 'notifications';
   static const String helpSupport = 'helpSupport';
   static const String privacyPolicy = 'privacyPolicy';
   static const String termsOfService = 'termsOfService';

@@ -8,14 +8,20 @@ import 'core/di/service_locator.dart';
 import 'core/routing/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/presentation/bloc/auth/auth_bloc.dart';
+import 'features/notifications/presentation/bloc/notification_bloc.dart';
 
 class MediMindApp extends StatelessWidget {
   const MediMindApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider<AuthBloc>(
-      create: (_) => sl<AuthBloc>(),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider<AuthBloc>(create: (_) => sl<AuthBloc>()),
+        BlocProvider<NotificationBloc>(
+          create: (_) => sl<NotificationBloc>(),
+        ),
+      ],
       child: ScreenUtilInit(
         designSize: const Size(375, 812),
         minTextAdapt: true,
