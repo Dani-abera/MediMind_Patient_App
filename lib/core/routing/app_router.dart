@@ -1,6 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import '../../features/appointments/presentation/bloc/appointments/appointments_bloc.dart';
+import '../../features/appointments/presentation/bloc/appointments/appointments_event.dart';
+import '../../features/appointments/presentation/bloc/booking_flow/booking_flow_bloc.dart';
+import '../../features/appointments/presentation/bloc/slot_picker/slot_picker_bloc.dart';
+import '../../features/appointments/presentation/bloc/slot_picker/slot_picker_event.dart';
+import '../../features/appointments/presentation/pages/appointment_detail_page.dart';
+import '../../features/appointments/presentation/pages/booking_confirmation_page.dart';
+import '../../features/appointments/presentation/pages/booking_summary_page.dart';
+import '../../features/appointments/presentation/pages/slot_picker_page.dart';
 import '../../features/auth/presentation/bloc/auth/auth_bloc.dart';
 import '../../features/auth/presentation/bloc/auth/auth_state.dart';
 import '../../features/auth/presentation/bloc/otp/otp_bloc.dart';
@@ -11,9 +20,15 @@ import '../../features/auth/presentation/pages/phone_entry_page.dart';
 import '../../features/auth/presentation/pages/profile_completion_page.dart';
 import '../../features/auth/presentation/pages/splash_page.dart';
 import '../../features/book/presentation/pages/book_page.dart';
+import '../../features/centers/presentation/bloc/centers_bloc.dart';
+import '../../features/centers/presentation/pages/center_detail_page.dart';
+import '../../features/centers/presentation/pages/center_search_page.dart';
+import '../../features/doctors/presentation/pages/center_doctors_page.dart';
+import '../../features/doctors/presentation/pages/doctor_detail_page.dart';
 import '../../features/health/presentation/pages/health_page.dart';
 import '../../features/home/presentation/bloc/home_bloc.dart';
 import '../../features/home/presentation/pages/home_page.dart';
+import '../../features/payments/presentation/pages/payment_webview_page.dart';
 import '../../features/profile/presentation/pages/profile_page.dart';
 import '../di/service_locator.dart';
 import '../widgets/navigation/app_shell.dart';
@@ -143,58 +158,111 @@ class AppRouter {
           ),
 
           // ── Tab 1: Book ─────────────────────────────────────────────
+          // BookingFlowBloc is provided at the branch shell level so it
+          // persists across all booking sub-screens while the tab is active.
           StatefulShellBranch(
             navigatorKey: _bookNavKey,
             routes: [
-              GoRoute(
-                name: RouteNames.book,
-                path: '/book',
-                builder: (_, __) => const BookPage(),
+              ShellRoute(
+                builder: (context, state, child) => MultiBlocProvider(
+                  providers: [
+                    BlocProvider<BookingFlowBloc>(
+                      create: (_) => sl<BookingFlowBloc>(),
+                    ),
+                    BlocProvider<AppointmentsBloc>(
+                      create: (_) => sl<AppointmentsBloc>()
+                        ..add(const AppointmentsRequested()),
+                    ),
+                  ],
+                  child: child,
+                ),
                 routes: [
                   GoRoute(
-                    name: RouteNames.searchDoctors,
-                    path: 'search',
-                    builder: (_, __) =>
-                        const _Placeholder(RouteNames.searchDoctors),
+                    name: RouteNames.book,
+                    path: '/book',
+                    builder: (_, __) => const BookPage(),
+                  ),
+                  GoRoute(
+                    name: RouteNames.myAppointments,
+                    path: '/appointments',
+                    builder: (_, __) => const BookPage(),
+                    routes: [
+                      GoRoute(
+                        name: RouteNames.appointmentDetail,
+                        path: ':id',
+                        builder: (_, state) => AppointmentDetailPage(
+                          appointmentId: state.pathParameters['id']!,
+                        ),
+                      ),
+                    ],
+                  ),
+                  GoRoute(
+                    name: RouteNames.centerSearch,
+                    path: '/book/search',
+                    builder: (_, __) => BlocProvider(
+                      create: (_) => sl<CentersBloc>(),
+                      child: const CenterSearchPage(),
+                    ),
+                  ),
+                  GoRoute(
+                    name: RouteNames.centerDetail,
+                    path: '/book/center/:id',
+                    builder: (_, state) => CenterDetailPage(
+                      centerId: state.pathParameters['id']!,
+                    ),
+                  ),
+                  GoRoute(
+                    name: RouteNames.centerDoctors,
+                    path: '/book/center/:centerId/doctors',
+                    builder: (_, state) => CenterDoctorsPage(
+                      centerId: state.pathParameters['centerId']!,
+                      centerName: state.uri.queryParameters['name'] ?? '',
+                    ),
                   ),
                   GoRoute(
                     name: RouteNames.doctorDetail,
-                    path: 'doctor/:id',
-                    builder: (_, state) => _Placeholder(
-                      '${RouteNames.doctorDetail}/${state.pathParameters['id']}',
+                    path: '/book/doctor/:id',
+                    builder: (_, state) => DoctorDetailPage(
+                      doctorId: state.pathParameters['id']!,
                     ),
                   ),
                   GoRoute(
                     name: RouteNames.appointmentSlots,
-                    path: 'slots',
-                    builder: (_, __) =>
-                        const _Placeholder(RouteNames.appointmentSlots),
+                    path: '/book/slots',
+                    builder: (_, state) {
+                      final extra =
+                          state.extra as Map<String, String>? ?? {};
+                      return BlocProvider(
+                        create: (_) => sl<SlotPickerBloc>()
+                          ..add(SlotPickerInitialized(
+                            doctorId: extra['doctorId'] ?? '',
+                            centerId: extra['centerId'] ?? '',
+                          )),
+                        child: const SlotPickerPage(),
+                      );
+                    },
                   ),
                   GoRoute(
                     name: RouteNames.appointmentConfirm,
-                    path: 'confirm',
-                    builder: (_, __) =>
-                        const _Placeholder(RouteNames.appointmentConfirm),
+                    path: '/book/confirm',
+                    builder: (_, __) => const BookingSummaryPage(),
+                  ),
+                  GoRoute(
+                    name: RouteNames.paymentWebView,
+                    path: '/book/payment',
+                    builder: (_, state) {
+                      final extra =
+                          state.extra as Map<String, String>? ?? {};
+                      return PaymentWebViewPage(
+                        checkoutUrl: extra['checkoutUrl'] ?? '',
+                        paymentId: extra['paymentId'] ?? '',
+                      );
+                    },
                   ),
                   GoRoute(
                     name: RouteNames.appointmentSuccess,
-                    path: 'success',
-                    builder: (_, __) =>
-                        const _Placeholder(RouteNames.appointmentSuccess),
-                  ),
-                ],
-              ),
-              GoRoute(
-                name: RouteNames.myAppointments,
-                path: '/appointments',
-                builder: (_, __) =>
-                    const _Placeholder(RouteNames.myAppointments),
-                routes: [
-                  GoRoute(
-                    name: RouteNames.appointmentDetail,
-                    path: ':id',
-                    builder: (_, __) =>
-                        const _Placeholder(RouteNames.appointmentDetail),
+                    path: '/book/success',
+                    builder: (_, __) => const BookingConfirmationPage(),
                   ),
                 ],
               ),

@@ -5,9 +5,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'core/di/service_locator.dart';
+import 'features/appointments/appointments_injection.dart';
 import 'features/auth/auth_injection.dart';
+import 'features/centers/centers_injection.dart';
+import 'features/doctors/doctors_injection.dart';
 import 'features/home/home_injection.dart';
 import 'features/notifications/notifications_injection.dart';
+import 'features/payments/payments_injection.dart';
 
 Future<void> bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,6 +29,10 @@ Future<void> bootstrap() async {
   await initAuthFeature(sl);
   initHomeFeature(sl);
   initNotificationsFeature(sl);
+  initCentersFeature(sl);
+  initDoctorsFeature(sl);
+  initPaymentsFeature(sl);
+  initAppointmentsFeature(sl);
 
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,

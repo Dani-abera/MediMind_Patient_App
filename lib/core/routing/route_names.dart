@@ -14,12 +14,20 @@ class RouteNames {
   static const String health = 'health';
   static const String profile = 'profile';
 
-  // Booking
+  // Booking — center search & detail
+  static const String centerSearch = 'centerSearch';
+  static const String centerDetail = 'centerDetail';
+  static const String centerDoctors = 'centerDoctors';
+
+  // Booking — doctor & slots
   static const String searchDoctors = 'searchDoctors';
   static const String doctorDetail = 'doctorDetail';
   static const String appointmentSlots = 'appointmentSlots';
   static const String appointmentConfirm = 'appointmentConfirm';
   static const String appointmentSuccess = 'appointmentSuccess';
+  static const String paymentWebView = 'paymentWebView';
+
+  // Appointments
   static const String myAppointments = 'myAppointments';
   static const String appointmentDetail = 'appointmentDetail';
 
