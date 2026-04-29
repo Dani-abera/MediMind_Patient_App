@@ -49,6 +49,7 @@ class RouteNames {
 
   // Notifications
   static const String notifications = 'notifications';
+  static const String notificationPreferences = 'notificationPreferences';
 
   // Queue tracking
   static const String queueStatus = 'queueStatus';
@@ -60,6 +61,13 @@ class RouteNames {
   // Profile
   static const String editProfile = 'editProfile';
   static const String settings = 'settings';
+  static const String medicalHistory = 'medicalHistory';
+  static const String emergencyContacts = 'emergencyContacts';
+  static const String addEditContact = 'addEditContact';
+  static const String favorites = 'favorites';
+  static const String leaveReview = 'leaveReview';
+  static const String prescriptionDetail = 'prescriptionDetail';
+  static const String paymentHistory = 'paymentHistory';
   static const String helpSupport = 'helpSupport';
   static const String privacyPolicy = 'privacyPolicy';
   static const String termsOfService = 'termsOfService';

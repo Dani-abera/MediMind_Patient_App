@@ -48,7 +48,28 @@ import '../../features/medication_reminders/domain/usecases/toggle_reminder_usec
 import '../../features/medication_reminders/presentation/bloc/medication_reminders_bloc.dart';
 import '../../features/medication_reminders/presentation/bloc/medication_reminders_event.dart';
 import '../../features/medication_reminders/presentation/pages/add_reminder_page.dart';
+import '../../features/emergency_contacts/presentation/bloc/emergency_contacts_bloc.dart';
+import '../../features/emergency_contacts/presentation/pages/add_edit_contact_page.dart';
+import '../../features/emergency_contacts/presentation/pages/emergency_contacts_page.dart';
+import '../../features/favorites/presentation/bloc/favorites_bloc.dart';
+import '../../features/favorites/presentation/pages/favorites_page.dart';
+import '../../features/medical_history/presentation/bloc/medical_history_bloc.dart';
+import '../../features/medical_history/presentation/pages/medical_history_page.dart';
+import '../../features/notifications/presentation/bloc/notifications_list_bloc.dart';
+import '../../features/notifications/presentation/pages/notification_preferences_page.dart';
+import '../../features/notifications/presentation/pages/notifications_page.dart';
+import '../../features/payments/presentation/bloc/payments_history_bloc.dart';
+import '../../features/payments/presentation/pages/payment_history_page.dart';
 import '../../features/payments/presentation/pages/payment_webview_page.dart';
+import '../../features/prescriptions/presentation/bloc/prescriptions_bloc.dart';
+import '../../features/prescriptions/presentation/pages/prescription_detail_page.dart';
+import '../../features/prescriptions/presentation/pages/prescriptions_list_page.dart';
+import '../../features/profile/presentation/bloc/profile_bloc.dart';
+import '../../features/profile/presentation/pages/edit_profile_page.dart';
+import '../../features/reviews/presentation/bloc/review_bloc.dart';
+import '../../features/reviews/presentation/pages/leave_review_page.dart';
+import '../../features/settings/presentation/bloc/settings_bloc.dart';
+import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/predictions/domain/usecases/get_latest_prediction_usecase.dart';
 import '../../features/predictions/domain/usecases/get_prediction_by_id_usecase.dart';
 import '../../features/predictions/domain/usecases/get_predictions_usecase.dart';
@@ -144,11 +165,113 @@ class AppRouter {
         },
       ),
 
-      // ── Notifications (full-screen, outside shell) ────────────────────
+      // ── Notifications ────────────────────────────────────────────────
       GoRoute(
         name: RouteNames.notifications,
         path: '/notifications',
-        builder: (_, __) => const _Placeholder(RouteNames.notifications),
+        builder: (_, __) => BlocProvider(
+          create: (_) => sl<NotificationsListBloc>(),
+          child: const NotificationsPage(),
+        ),
+        routes: [
+          GoRoute(
+            name: RouteNames.notificationPreferences,
+            path: 'preferences',
+            builder: (_, __) => BlocProvider(
+              create: (_) => sl<NotificationsListBloc>(),
+              child: const NotificationPreferencesPage(),
+            ),
+          ),
+        ],
+      ),
+
+      // ── Prescriptions ────────────────────────────────────────────────
+      GoRoute(
+        name: RouteNames.prescriptions,
+        path: '/prescriptions',
+        builder: (_, __) => BlocProvider(
+          create: (_) => sl<PrescriptionsBloc>(),
+          child: const PrescriptionsListPage(),
+        ),
+        routes: [
+          GoRoute(
+            name: RouteNames.prescriptionDetail,
+            path: ':id',
+            builder: (_, state) => BlocProvider(
+              create: (_) => sl<PrescriptionsBloc>(),
+              child: PrescriptionDetailPage(
+                  id: state.pathParameters['id']!),
+            ),
+          ),
+        ],
+      ),
+
+      // ── Emergency Contacts ────────────────────────────────────────────
+      GoRoute(
+        name: RouteNames.emergencyContacts,
+        path: '/emergency-contacts',
+        builder: (_, __) => BlocProvider(
+          create: (_) => sl<EmergencyContactsBloc>(),
+          child: const EmergencyContactsPage(),
+        ),
+        routes: [
+          GoRoute(
+            name: RouteNames.addEditContact,
+            path: 'contact',
+            builder: (_, state) => BlocProvider(
+              create: (_) => sl<EmergencyContactsBloc>(),
+              child: AddEditContactPage(
+                  contact: state.extra as dynamic),
+            ),
+          ),
+        ],
+      ),
+
+      // ── Favorites ─────────────────────────────────────────────────────
+      GoRoute(
+        name: RouteNames.favorites,
+        path: '/favorites',
+        builder: (_, __) => BlocProvider(
+          create: (_) => sl<FavoritesBloc>(),
+          child: const FavoritesPage(),
+        ),
+      ),
+
+      // ── Leave Review ──────────────────────────────────────────────────
+      GoRoute(
+        name: RouteNames.leaveReview,
+        path: '/review/:appointmentId',
+        builder: (_, state) {
+          final extra = state.extra as Map<String, String>? ?? {};
+          return BlocProvider(
+            create: (_) => sl<ReviewBloc>(),
+            child: LeaveReviewPage(
+              appointmentId: state.pathParameters['appointmentId']!,
+              doctorName: extra['doctorName'] ?? '',
+              centerName: extra['centerName'] ?? '',
+            ),
+          );
+        },
+      ),
+
+      // ── Medical History ───────────────────────────────────────────────
+      GoRoute(
+        name: RouteNames.medicalHistory,
+        path: '/medical-history',
+        builder: (_, __) => BlocProvider(
+          create: (_) => sl<MedicalHistoryBloc>(),
+          child: const MedicalHistoryPage(),
+        ),
+      ),
+
+      // ── Payment History ───────────────────────────────────────────────
+      GoRoute(
+        name: RouteNames.paymentHistory,
+        path: '/payment-history',
+        builder: (_, __) => BlocProvider(
+          create: (_) => sl<PaymentsHistoryBloc>(),
+          child: const PaymentHistoryPage(),
+        ),
       ),
 
       // ── Queue status (full-screen, outside shell) ─────────────────────
@@ -425,14 +548,18 @@ class AppRouter {
                   GoRoute(
                     name: RouteNames.editProfile,
                     path: 'edit',
-                    builder: (_, __) =>
-                        const _Placeholder(RouteNames.editProfile),
+                    builder: (_, __) => BlocProvider(
+                      create: (_) => sl<ProfileBloc>(),
+                      child: const EditProfilePage(),
+                    ),
                   ),
                   GoRoute(
                     name: RouteNames.settings,
                     path: 'settings',
-                    builder: (_, __) =>
-                        const _Placeholder(RouteNames.settings),
+                    builder: (_, __) => BlocProvider(
+                      create: (_) => sl<SettingsBloc>(),
+                      child: const SettingsPage(),
+                    ),
                   ),
                   GoRoute(
                     name: RouteNames.paymentMethods,

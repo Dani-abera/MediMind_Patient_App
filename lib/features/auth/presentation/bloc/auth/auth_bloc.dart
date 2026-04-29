@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../../core/services/notification_service.dart';
 import '../../../domain/repositories/auth_repository.dart';
 import '../../../domain/usecases/check_auth_status_usecase.dart';
 import '../../../domain/usecases/logout_usecase.dart';
@@ -40,12 +41,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
   void _onUserLoggedIn(UserLoggedIn event, Emitter<AuthState> emit) {
     emit(Authenticated(event.user));
+    NotificationService.instance.registerDeviceToken();
   }
 
   Future<void> _onUserLoggedOut(
     UserLoggedOut event,
     Emitter<AuthState> emit,
   ) async {
+    await NotificationService.instance.unregisterDeviceToken();
     await _logout();
     emit(const Unauthenticated());
   }

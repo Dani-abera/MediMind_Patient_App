@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:go_router/go_router.dart';
@@ -5,15 +6,54 @@ import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 import '../routing/route_names.dart';
 
+typedef DeviceTokenCallback = Future<void> Function(
+    String token, String platform);
+typedef DeviceTokenUnregisterCallback = Future<void> Function(String token);
+
 class NotificationService {
   NotificationService._();
   static final NotificationService instance = NotificationService._();
 
   final _plugin = FlutterLocalNotificationsPlugin();
   bool _initialized = false;
+  String? _currentToken;
 
   GoRouter? _router;
   void setRouter(GoRouter router) => _router = router;
+
+  DeviceTokenCallback? _onRegisterToken;
+  DeviceTokenUnregisterCallback? _onUnregisterToken;
+
+  void setTokenCallbacks({
+    required DeviceTokenCallback onRegister,
+    required DeviceTokenUnregisterCallback onUnregister,
+  }) {
+    _onRegisterToken = onRegister;
+    _onUnregisterToken = onUnregister;
+  }
+
+  Future<void> registerDeviceToken() async {
+    final messaging = FirebaseMessaging.instance;
+    final settings = await messaging.requestPermission();
+    if (settings.authorizationStatus == AuthorizationStatus.denied) return;
+    final token = await messaging.getToken();
+    if (token == null) return;
+    _currentToken = token;
+    final platform = Platform.isIOS ? 'ios' : 'android';
+    await _onRegisterToken?.call(token, platform);
+
+    FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
+      _currentToken = newToken;
+      await _onRegisterToken?.call(newToken, platform);
+    });
+  }
+
+  Future<void> unregisterDeviceToken() async {
+    final token = _currentToken;
+    if (token == null) return;
+    await _onUnregisterToken?.call(token);
+    _currentToken = null;
+  }
 
   Future<void> init() async {
     if (_initialized) return;
