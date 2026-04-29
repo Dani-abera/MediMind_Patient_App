@@ -10,8 +10,11 @@ import 'features/auth/auth_injection.dart';
 import 'features/centers/centers_injection.dart';
 import 'features/doctors/doctors_injection.dart';
 import 'features/home/home_injection.dart';
+import 'features/health_records/health_records_injection.dart';
+import 'features/medication_reminders/medication_reminders_injection.dart';
 import 'features/notifications/notifications_injection.dart';
 import 'features/payments/payments_injection.dart';
+import 'features/predictions/predictions_injection.dart';
 
 Future<void> bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,6 +36,9 @@ Future<void> bootstrap() async {
   initDoctorsFeature(sl);
   initPaymentsFeature(sl);
   initAppointmentsFeature(sl);
+  initHealthRecordsFeature(sl);
+  initPredictionsFeature(sl);
+  initMedicationRemindersFeature(sl);
 
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,

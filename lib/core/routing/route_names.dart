@@ -37,6 +37,15 @@ class RouteNames {
   static const String uploadRecord = 'uploadRecord';
   static const String labResults = 'labResults';
   static const String prescriptions = 'prescriptions';
+  static const String logVitals = '/logVitals';
+  static const String trendsDetail = '/trendsDetail';
+
+  // Predictions
+  static const String requestPrediction = '/requestPrediction';
+  static const String predictionDetail = '/predictionDetail';
+
+  // Medication reminders
+  static const String addReminder = '/addReminder';
 
   // Notifications
   static const String notifications = 'notifications';

@@ -26,11 +26,40 @@ import '../../features/centers/presentation/pages/center_search_page.dart';
 import '../../features/doctors/presentation/pages/center_doctors_page.dart';
 import '../../features/doctors/presentation/pages/doctor_detail_page.dart';
 import '../../features/health/presentation/pages/health_page.dart';
+import '../../features/health_records/domain/usecases/delete_record_usecase.dart';
+import '../../features/health_records/domain/usecases/get_health_records_usecase.dart';
+import '../../features/health_records/domain/usecases/get_latest_record_usecase.dart';
+import '../../features/health_records/domain/usecases/get_record_count_usecase.dart';
+import '../../features/health_records/domain/usecases/get_trends_usecase.dart';
+import '../../features/health_records/domain/usecases/log_vitals_usecase.dart';
+import '../../features/health_records/presentation/bloc/trends/trends_bloc.dart';
+import '../../features/health_records/presentation/bloc/trends/trends_event.dart';
+import '../../features/health_records/presentation/bloc/vitals/vitals_bloc.dart';
+import '../../features/health_records/presentation/bloc/vitals/vitals_event.dart';
+import '../../features/health_records/presentation/bloc/vitals_form/vitals_form_bloc.dart';
+import '../../features/health_records/presentation/pages/log_vitals_page.dart';
+import '../../features/health_records/presentation/pages/trends_detail_page.dart';
 import '../../features/home/presentation/bloc/home_bloc.dart';
 import '../../features/home/presentation/pages/home_page.dart';
+import '../../features/medication_reminders/domain/usecases/add_reminder_usecase.dart';
+import '../../features/medication_reminders/domain/usecases/delete_reminder_usecase.dart';
+import '../../features/medication_reminders/domain/usecases/get_reminders_usecase.dart';
+import '../../features/medication_reminders/domain/usecases/toggle_reminder_usecase.dart';
+import '../../features/medication_reminders/presentation/bloc/medication_reminders_bloc.dart';
+import '../../features/medication_reminders/presentation/bloc/medication_reminders_event.dart';
+import '../../features/medication_reminders/presentation/pages/add_reminder_page.dart';
 import '../../features/payments/presentation/pages/payment_webview_page.dart';
+import '../../features/predictions/domain/usecases/get_latest_prediction_usecase.dart';
+import '../../features/predictions/domain/usecases/get_prediction_by_id_usecase.dart';
+import '../../features/predictions/domain/usecases/get_predictions_usecase.dart';
+import '../../features/predictions/domain/usecases/request_prediction_usecase.dart';
+import '../../features/predictions/presentation/bloc/prediction/prediction_bloc.dart';
+import '../../features/predictions/presentation/bloc/prediction/prediction_event.dart';
+import '../../features/predictions/presentation/pages/prediction_detail_page.dart';
+import '../../features/predictions/presentation/pages/request_prediction_page.dart';
 import '../../features/profile/presentation/pages/profile_page.dart';
 import '../di/service_locator.dart';
+import '../services/notification_service.dart';
 import '../widgets/navigation/app_shell.dart';
 import 'route_names.dart';
 
@@ -270,39 +299,81 @@ class AppRouter {
           ),
 
           // ── Tab 2: Health ─────────────────────────────────────────
+          // All health BLoCs are provided at the ShellRoute level so
+          // sub-pages (LogVitals, Trends, Predictions, etc.) can read them.
           StatefulShellBranch(
             navigatorKey: _healthNavKey,
             routes: [
-              GoRoute(
-                name: RouteNames.health,
-                path: '/health',
-                builder: (_, __) => const HealthPage(),
+              ShellRoute(
+                builder: (context, state, child) => MultiBlocProvider(
+                  providers: [
+                    BlocProvider<VitalsBloc>(
+                      create: (_) => VitalsBloc(
+                        getHealthRecords: sl<GetHealthRecordsUsecase>(),
+                        getLatestRecord: sl<GetLatestRecordUsecase>(),
+                        getRecordCount: sl<GetRecordCountUsecase>(),
+                        deleteRecord: sl<DeleteRecordUsecase>(),
+                      )..add(const VitalsRequested()),
+                    ),
+                    BlocProvider<VitalsFormBloc>(
+                      create: (_) =>
+                          VitalsFormBloc(logVitals: sl<LogVitalsUsecase>()),
+                    ),
+                    BlocProvider<TrendsBloc>(
+                      create: (_) => TrendsBloc(
+                        getTrends: sl<GetTrendsUsecase>(),
+                      )..add(const TrendsRequested()),
+                    ),
+                    BlocProvider<PredictionBloc>(
+                      create: (_) => PredictionBloc(
+                        requestPrediction: sl<RequestPredictionUsecase>(),
+                        getPredictions: sl<GetPredictionsUsecase>(),
+                        getLatestPrediction: sl<GetLatestPredictionUsecase>(),
+                        getPredictionById: sl<GetPredictionByIdUsecase>(),
+                        getRecordCount: sl<GetRecordCountUsecase>(),
+                      )..add(const PredictionsRequested()),
+                    ),
+                    BlocProvider<MedicationRemindersBloc>(
+                      create: (_) => MedicationRemindersBloc(
+                        getReminders: sl<GetRemindersUsecase>(),
+                        addReminder: sl<AddReminderUsecase>(),
+                        deleteReminder: sl<DeleteReminderUsecase>(),
+                        toggleReminder: sl<ToggleReminderUsecase>(),
+                        notificationService: NotificationService.instance,
+                      )..add(const MedicationRemindersRequested()),
+                    ),
+                  ],
+                  child: child,
+                ),
                 routes: [
                   GoRoute(
-                    name: RouteNames.healthRecords,
-                    path: 'records',
-                    builder: (_, __) =>
-                        const _Placeholder(RouteNames.healthRecords),
-                    routes: [
-                      GoRoute(
-                        name: RouteNames.recordDetail,
-                        path: ':id',
-                        builder: (_, __) =>
-                            const _Placeholder(RouteNames.recordDetail),
-                      ),
-                      GoRoute(
-                        name: RouteNames.uploadRecord,
-                        path: 'upload',
-                        builder: (_, __) =>
-                            const _Placeholder(RouteNames.uploadRecord),
-                      ),
-                    ],
+                    name: RouteNames.health,
+                    path: '/health',
+                    builder: (_, __) => const HealthPage(),
                   ),
                   GoRoute(
-                    name: RouteNames.prescriptions,
-                    path: 'prescriptions',
-                    builder: (_, __) =>
-                        const _Placeholder(RouteNames.prescriptions),
+                    path: RouteNames.logVitals,
+                    builder: (_, state) => LogVitalsPage(
+                      recordId: state.uri.queryParameters['recordId'],
+                    ),
+                  ),
+                  GoRoute(
+                    path: RouteNames.trendsDetail,
+                    builder: (_, __) => const TrendsDetailPage(),
+                  ),
+                  GoRoute(
+                    path: RouteNames.requestPrediction,
+                    builder: (_, __) => const RequestPredictionPage(),
+                  ),
+                  GoRoute(
+                    path: '${RouteNames.predictionDetail}/:id',
+                    builder: (_, state) => PredictionDetailPage(
+                      predictionId: state.pathParameters['id']!,
+                    ),
+                  ),
+                  GoRoute(
+                    path: RouteNames.addReminder,
+                    builder: (_, __) => const AddReminderPage(),
                   ),
                 ],
               ),
