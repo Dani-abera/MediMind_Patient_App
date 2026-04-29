@@ -1,6 +1,9 @@
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:timezone/timezone.dart' as tz;
+import 'package:go_router/go_router.dart';
 import 'package:timezone/data/latest.dart' as tz_data;
+import 'package:timezone/timezone.dart' as tz;
+import '../routing/route_names.dart';
 
 class NotificationService {
   NotificationService._();
@@ -9,9 +12,17 @@ class NotificationService {
   final _plugin = FlutterLocalNotificationsPlugin();
   bool _initialized = false;
 
+  GoRouter? _router;
+  void setRouter(GoRouter router) => _router = router;
+
   Future<void> init() async {
     if (_initialized) return;
     tz_data.initializeTimeZones();
+
+    FirebaseMessaging.onMessage.listen(_handleFcmForeground);
+    FirebaseMessaging.onMessageOpenedApp.listen(_handleFcmTap);
+    final initial = await FirebaseMessaging.instance.getInitialMessage();
+    if (initial != null) _handleFcmTap(initial);
 
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
     const ios = DarwinInitializationSettings(
@@ -24,6 +35,61 @@ class NotificationService {
       const InitializationSettings(android: android, iOS: ios),
     );
     _initialized = true;
+  }
+
+  void _handleFcmForeground(RemoteMessage message) {
+    // Show local notification for foreground FCM messages
+    final data = message.data;
+    final type = data['type'] as String?;
+    if (type == 'queue_called' || type == 'video_started') {
+      _showHeadsUpNotification(message);
+    }
+  }
+
+  void _handleFcmTap(RemoteMessage message) {
+    final data = message.data;
+    final type = data['type'] as String?;
+    if (type == 'queue_called') {
+      final appointmentId = data['appointmentId'] as String?;
+      if (appointmentId != null) {
+        _router?.goNamed(
+          RouteNames.queueStatus,
+          pathParameters: {'appointmentId': appointmentId},
+        );
+      }
+    } else if (type == 'video_started') {
+      final consultationId = data['consultationId'] as String?;
+      if (consultationId != null) {
+        _router?.goNamed(
+          RouteNames.videoCall,
+          pathParameters: {'id': consultationId},
+        );
+      }
+    }
+  }
+
+  Future<void> _showHeadsUpNotification(RemoteMessage message) async {
+    final notification = message.notification;
+    if (notification == null) return;
+    await _plugin.show(
+      message.hashCode,
+      notification.title,
+      notification.body,
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'realtime_alerts',
+          'Real-time Alerts',
+          channelDescription: 'Queue and video call alerts',
+          importance: Importance.max,
+          priority: Priority.high,
+        ),
+        iOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+        ),
+      ),
+    );
   }
 
   Future<void> scheduleReminder({

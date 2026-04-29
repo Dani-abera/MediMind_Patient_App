@@ -50,6 +50,9 @@ class RouteNames {
   // Notifications
   static const String notifications = 'notifications';
 
+  // Queue tracking
+  static const String queueStatus = 'queueStatus';
+
   // Telemedicine
   static const String videoCall = 'videoCall';
   static const String callSummary = 'callSummary';

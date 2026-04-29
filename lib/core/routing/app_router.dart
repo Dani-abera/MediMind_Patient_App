@@ -58,6 +58,15 @@ import '../../features/predictions/presentation/bloc/prediction/prediction_event
 import '../../features/predictions/presentation/pages/prediction_detail_page.dart';
 import '../../features/predictions/presentation/pages/request_prediction_page.dart';
 import '../../features/profile/presentation/pages/profile_page.dart';
+import '../../features/queue/domain/usecases/cancel_queue_usecase.dart';
+import '../../features/queue/domain/usecases/get_queue_status_usecase.dart';
+import '../../features/queue/presentation/bloc/queue_bloc.dart';
+import '../../features/queue/presentation/pages/queue_status_page.dart';
+import '../../features/queue/services/queue_signalr_service.dart';
+import '../../features/video_consultation/domain/usecases/get_consultation_usecase.dart';
+import '../../features/video_consultation/presentation/bloc/video_call_bloc.dart';
+import '../../features/video_consultation/presentation/pages/video_call_page.dart';
+import '../../features/video_consultation/services/video_signalr_service.dart';
 import '../di/service_locator.dart';
 import '../services/notification_service.dart';
 import '../widgets/navigation/app_shell.dart';
@@ -142,11 +151,35 @@ class AppRouter {
         builder: (_, __) => const _Placeholder(RouteNames.notifications),
       ),
 
+      // ── Queue status (full-screen, outside shell) ─────────────────────
+      GoRoute(
+        name: RouteNames.queueStatus,
+        path: '/queue/status/:appointmentId',
+        builder: (_, state) => BlocProvider(
+          create: (_) => QueueBloc(
+            queueSignalR: sl<QueueSignalRService>(),
+            getQueueStatus: sl<GetQueueStatusUsecase>(),
+            cancelQueue: sl<CancelQueueUsecase>(),
+          ),
+          child: QueueStatusPage(
+            appointmentId: state.pathParameters['appointmentId']!,
+          ),
+        ),
+      ),
+
       // ── Video call (full-screen) ──────────────────────────────────────
       GoRoute(
         name: RouteNames.videoCall,
         path: '/call/:id',
-        builder: (_, __) => const _Placeholder(RouteNames.videoCall),
+        builder: (_, state) => BlocProvider(
+          create: (_) => VideoCallBloc(
+            getConsultation: sl<GetConsultationUsecase>(),
+            videoSignalR: sl<VideoSignalRService>(),
+          ),
+          child: VideoCallPage(
+            consultationId: state.pathParameters['id']!,
+          ),
+        ),
       ),
 
       // ── Scanner / Web / PDF (full-screen) ────────────────────────────

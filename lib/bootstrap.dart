@@ -15,6 +15,8 @@ import 'features/medication_reminders/medication_reminders_injection.dart';
 import 'features/notifications/notifications_injection.dart';
 import 'features/payments/payments_injection.dart';
 import 'features/predictions/predictions_injection.dart';
+import 'features/queue/queue_injection.dart';
+import 'features/video_consultation/video_consultation_injection.dart';
 
 Future<void> bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -39,6 +41,8 @@ Future<void> bootstrap() async {
   initHealthRecordsFeature(sl);
   initPredictionsFeature(sl);
   initMedicationRemindersFeature(sl);
+  initQueueFeature(sl);
+  initVideoConsultationFeature(sl);
 
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
