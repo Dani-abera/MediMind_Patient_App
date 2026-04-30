@@ -89,6 +89,7 @@ import '../../features/video_consultation/presentation/bloc/video_call_bloc.dart
 import '../../features/video_consultation/presentation/pages/video_call_page.dart';
 import '../../features/video_consultation/services/video_signalr_service.dart';
 import '../di/service_locator.dart';
+import '../services/analytics_service.dart';
 import '../services/notification_service.dart';
 import '../widgets/navigation/app_shell.dart';
 import 'route_names.dart';
@@ -110,6 +111,7 @@ class AppRouter {
     initialLocation: '/',
     redirect: _globalRedirect,
     refreshListenable: _AuthStateListenable(sl<AuthBloc>()),
+    observers: [AnalyticsService.instance.observer, AnalyticsRouteObserver()],
     routes: [
       // ── Splash & Onboarding ───────────────────────────────────────────
       GoRoute(

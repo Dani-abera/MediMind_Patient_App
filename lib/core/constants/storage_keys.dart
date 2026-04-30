@@ -12,4 +12,5 @@ class StorageKeys {
   static const String themeMode = 'theme_mode';
   static const String lastSyncedAt = 'last_synced_at';
   static const String notificationPreferences = 'notification_preferences';
+  static const String tutorialCompleted = 'tutorial_completed';
 }

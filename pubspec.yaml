@@ -74,6 +74,8 @@ dev_dependencies:
   mocktail: ^1.0.4
   bloc_test: ^10.0.0
   build_runner: ^2.4.13
+  flutter_launcher_icons: ^0.14.1
+  flutter_native_splash: ^2.4.4
 
 flutter:
   uses-material-design: true
@@ -83,6 +85,7 @@ flutter:
     - assets/icons/
     - assets/lottie/
     - assets/translations/
+    - assets/certs/
     - .env
 
   fonts:
@@ -95,3 +98,28 @@ flutter:
           weight: 600
         - asset: assets/fonts/PlusJakartaSans-Bold.ttf
           weight: 700
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/app_icon.png"
+  adaptive_icon_background: "#0D9488"
+  adaptive_icon_foreground: "assets/images/app_icon_foreground.png"
+  min_sdk_android: 23
+  web:
+    generate: false
+
+flutter_native_splash:
+  color: "#0D9488"
+  color_dark: "#0F172A"
+  image: assets/images/splash_logo.png
+  image_dark: assets/images/splash_logo.png
+  android: true
+  ios: true
+  android_12:
+    color: "#0D9488"
+    color_dark: "#0F172A"
+    image: assets/images/splash_logo.png
+    image_dark: assets/images/splash_logo.png
+    icon_background_color: "#0D9488"
+    icon_background_color_dark: "#0F172A"

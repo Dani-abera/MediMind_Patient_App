@@ -4,8 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'core/cache/hive_cache.dart';
 import 'core/di/service_locator.dart';
+import 'core/network/ssl_pinning_interceptor.dart';
+import 'core/services/analytics_service.dart';
+import 'core/services/crashlytics_service.dart';
 import 'core/services/notification_service.dart';
+import 'core/services/remote_config_service.dart';
 import 'features/appointments/appointments_injection.dart';
 import 'features/auth/auth_injection.dart';
 import 'features/centers/centers_injection.dart';
@@ -32,13 +37,31 @@ Future<void> bootstrap() async {
 
   await dotenv.load(fileName: '.env');
 
-  await Firebase.initializeApp();
+  // SSL cert must be loaded before Dio is constructed
+  await SslPinningInterceptor.loadCertificate();
+
+  try {
+    await Firebase.initializeApp();
+  } catch (e) {
+    debugPrint('[Bootstrap] Firebase not configured — running without it: $e');
+  }
+
+  // Remote Config — deferred fetch, don't block startup
+  if (Firebase.apps.isNotEmpty) {
+    RemoteConfigService.instance.init().ignore();
+  }
 
   await EasyLocalization.ensureInitialized();
 
   await Hive.initFlutter();
+  await HiveCache.init();
 
   await initDependencies();
+
+  // Register analytics user-id bridge
+  if (Firebase.apps.isNotEmpty) {
+    AnalyticsHelperRef.register(AnalyticsService.instance.setUserId);
+  }
 
   await initAuthFeature(sl);
   initHomeFeature(sl);
@@ -61,13 +84,15 @@ Future<void> bootstrap() async {
   initSettingsFeature(sl);
 
   // Wire FCM device token registration/unregistration callbacks
-  NotificationService.instance.setTokenCallbacks(
-    onRegister: (token, platform) =>
-        sl<NotificationRemoteDataSource>()
-            .registerDeviceToken(token, platform),
-    onUnregister: (token) =>
-        sl<NotificationRemoteDataSource>().unregisterDeviceToken(token),
-  );
+  if (Firebase.apps.isNotEmpty) {
+    NotificationService.instance.setTokenCallbacks(
+      onRegister: (token, platform) =>
+          sl<NotificationRemoteDataSource>()
+              .registerDeviceToken(token, platform),
+      onUnregister: (token) =>
+          sl<NotificationRemoteDataSource>().unregisterDeviceToken(token),
+    );
+  }
 
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,

@@ -49,4 +49,10 @@ class PreferencesStorage {
         StorageKeys.notificationPreferences,
         json.encode(prefs),
       );
+
+  bool get tutorialCompleted =>
+      _prefs.getBool(StorageKeys.tutorialCompleted) ?? false;
+
+  Future<void> setTutorialCompleted(bool value) =>
+      _prefs.setBool(StorageKeys.tutorialCompleted, value);
 }

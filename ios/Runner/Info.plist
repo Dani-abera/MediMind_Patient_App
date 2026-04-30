@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Medimind</string>
+	<string>MediMind</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -15,7 +15,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>medimind</string>
+	<string>MediMind</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -26,6 +26,58 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+
+	<!-- Privacy usage descriptions -->
+	<key>NSCameraUsageDescription</key>
+	<string>MediMind needs camera access for video consultations and uploading your profile photo.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>MediMind needs microphone access for video consultations with your doctor.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>MediMind uses your location to find nearby medical centers and doctors.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>MediMind needs photo library access to upload your profile picture.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>MediMind needs permission to save images to your photo library.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>MediMind uses Face ID for secure and quick authentication.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>MediMind can import contacts to quickly add emergency contacts.</string>
+
+	<!-- Deep link URL scheme -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>et.medimind.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>medimind</string>
+			</array>
+		</dict>
+	</array>
+
+	<!-- Associated domains for universal links -->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:app.medimind.et</string>
+	</array>
+
+	<!-- Firebase / Push notifications -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>remote-notification</string>
+	</array>
+
+	<!-- App Transport Security -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
+	</dict>
+
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -56,8 +108,6 @@
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
