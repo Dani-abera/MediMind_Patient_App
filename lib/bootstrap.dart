@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+
 import 'core/cache/hive_cache.dart';
 import 'core/di/service_locator.dart';
 import 'core/network/ssl_pinning_interceptor.dart';
@@ -17,8 +18,8 @@ import 'features/centers/centers_injection.dart';
 import 'features/doctors/doctors_injection.dart';
 import 'features/emergency_contacts/emergency_contacts_injection.dart';
 import 'features/favorites/favorites_injection.dart';
-import 'features/home/home_injection.dart';
 import 'features/health_records/health_records_injection.dart';
+import 'features/home/home_injection.dart';
 import 'features/medical_history/medical_history_injection.dart';
 import 'features/medication_reminders/medication_reminders_injection.dart';
 import 'features/notifications/data/datasources/notification_remote_datasource.dart';
@@ -86,9 +87,8 @@ Future<void> bootstrap() async {
   // Wire FCM device token registration/unregistration callbacks
   if (Firebase.apps.isNotEmpty) {
     NotificationService.instance.setTokenCallbacks(
-      onRegister: (token, platform) =>
-          sl<NotificationRemoteDataSource>()
-              .registerDeviceToken(token, platform),
+      onRegister: (token, platform) => sl<NotificationRemoteDataSource>()
+          .registerDeviceToken(token, platform),
       onUnregister: (token) =>
           sl<NotificationRemoteDataSource>().unregisterDeviceToken(token),
     );

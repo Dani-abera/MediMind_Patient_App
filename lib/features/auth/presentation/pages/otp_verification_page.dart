@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pinput/pinput.dart';
+
 import '../../../../../core/routing/route_names.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_typography.dart';
@@ -54,16 +55,25 @@ class _OtpVerificationPageState extends State<OtpVerificationPage>
   }
 
   void _onCompleted(String code) {
+    if (code.length != 6) return;
+
+    _pinFocus.unfocus();
     HapticFeedback.lightImpact();
+
     context.read<OtpBloc>().add(
-          OtpSubmitted(phoneNumber: widget.phoneNumber, otpCode: code),
-        );
+      OtpSubmitted(phoneNumber: widget.phoneNumber, otpCode: code),
+    );
   }
 
   String _maskedPhone(String phone) {
-    if (phone.length <= 5) return phone;
+    if (phone.length <= 4) return phone;
     final suffix = phone.substring(phone.length - 4);
-    return '${phone.substring(0, phone.length - 7)}XXX $suffix';
+    if (phone.length < 8) {
+      return '*** $suffix';
+    }
+
+    final prefix = phone.substring(0, phone.length - 7);
+    return '$prefix XXX $suffix';
   }
 
   @override
@@ -81,14 +91,22 @@ class _OtpVerificationPageState extends State<OtpVerificationPage>
     return BlocListener<OtpBloc, OtpState>(
       listener: (context, state) {
         if (state is OtpVerified) {
-          context.read<AuthBloc>().add(UserLoggedIn(state.user));
-          if (state.user.isProfileComplete) {
-            context.goNamed(RouteNames.home);
-          } else {
-            context.goNamed(RouteNames.profileCompletion);
-          }
+          final user = state.user;
+
+          context.read<AuthBloc>().add(UserLoggedIn(user));
+
+          Future.microtask(() {
+            if (!mounted) return;
+            if (user.isProfileComplete) {
+              context.goNamed(RouteNames.home);
+            } else {
+              context.goNamed(RouteNames.profileCompletion);
+            }
+          });
         } else if (state is OtpFailure) {
-          _shakeController.forward(from: 0);
+          _shakeController
+            ..stop()
+            ..forward(from: 0);
           _pinController.clear();
           _pinFocus.requestFocus();
           ScaffoldMessenger.of(context).showSnackBar(
@@ -140,7 +158,6 @@ class _OtpVerificationPageState extends State<OtpVerificationPage>
                         autofocus: true,
                         enabled: !isVerifying,
                         onCompleted: _onCompleted,
-                        onChanged: (_) => HapticFeedback.lightImpact(),
                         defaultPinTheme: defaultTheme,
                         focusedPinTheme: defaultTheme.copyWith(
                           decoration: BoxDecoration(
@@ -164,18 +181,21 @@ class _OtpVerificationPageState extends State<OtpVerificationPage>
                 SizedBox(height: 32.h),
                 BlocBuilder<OtpBloc, OtpState>(
                   builder: (context, state) {
-                    final remaining = state is OtpSent
-                        ? state.remainingSeconds
-                        : state is OtpFailure
-                            ? state.remainingSeconds
-                            : 0;
+                    int remaining = 0;
+                    if (state is OtpSent) remaining = state.remainingSeconds;
+                    if (state is OtpFailure) remaining = state.remainingSeconds;
+                    if (state is OtpVerifying) {
+                      remaining = state.remainingSeconds;
+                    }
+
                     final canResend = state is OtpExpired;
+
                     return OtpTimerWidget(
                       remainingSeconds: remaining,
                       canResend: canResend,
-                      onResend: () => context
-                          .read<OtpBloc>()
-                          .add(OtpResendRequested(widget.phoneNumber)),
+                      onResend: () => context.read<OtpBloc>().add(
+                        OtpResendRequested(widget.phoneNumber),
+                      ),
                     );
                   },
                 ),

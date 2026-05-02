@@ -1,5 +1,7 @@
 import 'dart:convert';
+
 import 'package:hive_flutter/hive_flutter.dart';
+
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/storage/secure_storage.dart';
 import '../models/auth_tokens_model.dart';
@@ -64,6 +66,9 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
     return AuthTokensModel(
       accessToken: accessToken,
       refreshToken: refreshToken,
+      userId: '',
+      userType: '',
+      fullName: '',
     );
   }
 

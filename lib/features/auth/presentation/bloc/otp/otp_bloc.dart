@@ -1,6 +1,8 @@
 import 'dart:async';
+
 import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+
 import '../../../domain/usecases/request_otp_usecase.dart';
 import '../../../domain/usecases/verify_otp_usecase.dart';
 import 'otp_event.dart';
@@ -10,9 +12,9 @@ class OtpBloc extends Bloc<OtpEvent, OtpState> {
   OtpBloc({
     required RequestOtpUsecase requestOtp,
     required VerifyOtpUsecase verifyOtp,
-  })  : _requestOtp = requestOtp,
-        _verifyOtp = verifyOtp,
-        super(const OtpInitial()) {
+  }) : _requestOtp = requestOtp,
+       _verifyOtp = verifyOtp,
+       super(const OtpInitial()) {
     on<OtpRequested>(_onOtpRequested);
     on<OtpSubmitted>(_onOtpSubmitted, transformer: droppable());
     on<OtpResendRequested>(_onOtpResendRequested);
@@ -40,10 +42,12 @@ class OtpBloc extends Bloc<OtpEvent, OtpState> {
         ),
       ),
       (_) {
-        emit(OtpSent(
-          phoneNumber: event.phoneNumber,
-          remainingSeconds: _otpDuration,
-        ));
+        emit(
+          OtpSent(
+            phoneNumber: event.phoneNumber,
+            remainingSeconds: _otpDuration,
+          ),
+        );
         _startTimer(event.phoneNumber);
       },
     );
@@ -54,15 +58,14 @@ class OtpBloc extends Bloc<OtpEvent, OtpState> {
     Emitter<OtpState> emit,
   ) async {
     final currentRemaining = _currentRemaining;
-    emit(OtpVerifying(
-      phoneNumber: event.phoneNumber,
-      remainingSeconds: currentRemaining,
-    ));
-    final result = await _verifyOtp(
-      VerifyOtpParams(
+    emit(
+      OtpVerifying(
         phoneNumber: event.phoneNumber,
-        otpCode: event.otpCode,
+        remainingSeconds: currentRemaining,
       ),
+    );
+    final result = await _verifyOtp(
+      VerifyOtpParams(phoneNumber: event.phoneNumber, otpCode: event.otpCode),
     );
     result.fold(
       (failure) => emit(
@@ -95,10 +98,12 @@ class OtpBloc extends Bloc<OtpEvent, OtpState> {
         ),
       ),
       (_) {
-        emit(OtpSent(
-          phoneNumber: event.phoneNumber,
-          remainingSeconds: _otpDuration,
-        ));
+        emit(
+          OtpSent(
+            phoneNumber: event.phoneNumber,
+            remainingSeconds: _otpDuration,
+          ),
+        );
         _startTimer(event.phoneNumber);
       },
     );
@@ -106,27 +111,43 @@ class OtpBloc extends Bloc<OtpEvent, OtpState> {
 
   void _onTimerTicked(OtpTimerTicked event, Emitter<OtpState> emit) {
     final current = state;
+
+    if (current is OtpVerifying) {
+      emit(
+        OtpVerifying(
+          phoneNumber: current.phoneNumber,
+          remainingSeconds: event.remainingSeconds,
+        ),
+      );
+      return;
+    }
+
     if (event.remainingSeconds <= 0) {
       _cancelTimer();
       final phone = current is OtpSent
           ? current.phoneNumber
           : current is OtpFailure
-              ? current.phoneNumber
-              : '';
+          ? current.phoneNumber
+          : '';
       emit(OtpExpired(phone));
       return;
     }
+
     if (current is OtpSent) {
-      emit(OtpSent(
-        phoneNumber: current.phoneNumber,
-        remainingSeconds: event.remainingSeconds,
-      ));
+      emit(
+        OtpSent(
+          phoneNumber: current.phoneNumber,
+          remainingSeconds: event.remainingSeconds,
+        ),
+      );
     } else if (current is OtpFailure) {
-      emit(OtpFailure(
-        message: current.message,
-        phoneNumber: current.phoneNumber,
-        remainingSeconds: event.remainingSeconds,
-      ));
+      emit(
+        OtpFailure(
+          message: current.message,
+          phoneNumber: current.phoneNumber,
+          remainingSeconds: event.remainingSeconds,
+        ),
+      );
     }
   }
 

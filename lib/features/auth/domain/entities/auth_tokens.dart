@@ -4,13 +4,23 @@ class AuthTokens extends Equatable {
   const AuthTokens({
     required this.accessToken,
     required this.refreshToken,
-    this.expiresAt,
+    required this.userId,
+    required this.userType,
+    required this.fullName,
   });
 
   final String accessToken;
   final String refreshToken;
-  final DateTime? expiresAt;
+  final String userId;
+  final String userType;
+  final String fullName;
 
   @override
-  List<Object?> get props => [accessToken, refreshToken, expiresAt];
+  List<Object?> get props => [
+    accessToken,
+    refreshToken,
+    userId,
+    userType,
+    fullName,
+  ];
 }

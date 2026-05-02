@@ -1,5 +1,7 @@
 import 'dart:async';
+
 import 'package:dartz/dartz.dart';
+
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/error/failures.dart';
 import '../../domain/entities/user.dart';
@@ -19,8 +21,7 @@ class AuthRepositoryImpl implements AuthRepository {
   final AuthRemoteDataSource remoteDataSource;
   final AuthLocalDataSource localDataSource;
 
-  final _authStatusController =
-      StreamController<AuthStatus>.broadcast();
+  final _authStatusController = StreamController<AuthStatus>.broadcast();
 
   @override
   Stream<AuthStatus> get authStatusStream => _authStatusController.stream;
@@ -85,7 +86,9 @@ class AuthRepositoryImpl implements AuthRepository {
       final tokens = AuthTokensModel(
         accessToken: result.tokens.accessToken,
         refreshToken: result.tokens.refreshToken,
-        expiresAt: result.tokens.expiresAt,
+        userId: result.tokens.userId,
+        userType: result.tokens.userType,
+        fullName: result.tokens.fullName,
       );
       await localDataSource.saveTokens(tokens);
       await localDataSource.cacheUser(result.user);
@@ -108,9 +111,7 @@ class AuthRepositoryImpl implements AuthRepository {
       final tokens = await localDataSource.getTokens();
       final isAuthenticated = tokens != null;
       _authStatusController.add(
-        isAuthenticated
-            ? AuthStatus.authenticated
-            : AuthStatus.unauthenticated,
+        isAuthenticated ? AuthStatus.authenticated : AuthStatus.unauthenticated,
       );
       return Right(isAuthenticated);
     } catch (_) {
