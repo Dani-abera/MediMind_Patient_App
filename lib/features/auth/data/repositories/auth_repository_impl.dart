@@ -8,9 +8,10 @@ import '../../domain/entities/user.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_local_datasource.dart';
 import '../datasources/auth_remote_datasource.dart';
-import '../models/auth_tokens_model.dart';
+
 import '../models/otp_request_model.dart';
 import '../models/register_request_model.dart';
+import '../models/user_model.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
   AuthRepositoryImpl({
@@ -80,20 +81,21 @@ class AuthRepositoryImpl implements AuthRepository {
     required String otpCode,
   }) async {
     try {
-      final result = await remoteDataSource.verifyOtp(
+      final tokens = await remoteDataSource.verifyOtp(
         OtpVerifyRequestModel(phoneNumber: phoneNumber, otpCode: otpCode),
       );
-      final tokens = AuthTokensModel(
-        accessToken: result.tokens.accessToken,
-        refreshToken: result.tokens.refreshToken,
-        userId: result.tokens.userId,
-        userType: result.tokens.userType,
-        fullName: result.tokens.fullName,
-      );
       await localDataSource.saveTokens(tokens);
-      await localDataSource.cacheUser(result.user);
+      
+      final user = UserModel(
+        patientId: tokens.userId,
+        fullName: tokens.fullName,
+        phoneNumber: phoneNumber,
+        isProfileComplete: true,
+      );
+      
+      await localDataSource.cacheUser(user);
       _authStatusController.add(AuthStatus.authenticated);
-      return Right(result.user);
+      return Right(user);
     } on UnauthorizedException catch (e) {
       return Left(AuthFailure(message: e.message));
     } on ServerException catch (e) {

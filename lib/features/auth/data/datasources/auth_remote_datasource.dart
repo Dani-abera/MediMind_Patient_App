@@ -3,12 +3,12 @@ import '../../../../core/error/exceptions.dart';
 import '../models/auth_tokens_model.dart';
 import '../models/otp_request_model.dart';
 import '../models/register_request_model.dart';
-import '../models/user_model.dart';
+
 
 abstract class AuthRemoteDataSource {
   Future<String> registerPatient(RegisterRequestModel request);
   Future<void> requestOtp(OtpRequestModel request);
-  Future<({AuthTokensModel tokens, UserModel user})> verifyOtp(
+  Future<AuthTokensModel> verifyOtp(
     OtpVerifyRequestModel request,
   );
   Future<AuthTokensModel> refreshToken(String refreshToken);
@@ -42,7 +42,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   }
 
   @override
-  Future<({AuthTokensModel tokens, UserModel user})> verifyOtp(
+  Future<AuthTokensModel> verifyOtp(
     OtpVerifyRequestModel request,
   ) async {
     try {
@@ -51,10 +51,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         data: request.toJson(),
       );
       final data = response.data as Map<String, dynamic>;
-      return (
-        tokens: AuthTokensModel.fromJson(data),
-        user: UserModel.fromJson(data['user'] as Map<String, dynamic>),
-      );
+      return AuthTokensModel.fromJson(data);
     } on DioException catch (e) {
       throw _mapDioException(e);
     }

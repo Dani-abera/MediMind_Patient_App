@@ -14,17 +14,19 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     required AuthRepository authRepository,
   })  : _checkAuthStatus = checkAuthStatus,
         _logout = logout,
+        _authRepository = authRepository,
         super(const AuthInitial()) {
     on<AppStarted>(_onAppStarted);
     on<UserLoggedIn>(_onUserLoggedIn);
     on<UserLoggedOut>(_onUserLoggedOut);
     on<TokenExpired>(_onTokenExpired);
 
-    _statusSub = authRepository.authStatusStream.listen(_onStatusChanged);
+    _statusSub = _authRepository.authStatusStream.listen(_onStatusChanged);
   }
 
   final CheckAuthStatusUsecase _checkAuthStatus;
   final LogoutUsecase _logout;
+  final AuthRepository _authRepository;
   late final StreamSubscription<AuthStatus> _statusSub;
 
   Future<void> _onAppStarted(
@@ -33,9 +35,25 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     emit(const AuthLoading());
     final result = await _checkAuthStatus();
-    result.fold(
-      (_) => emit(const Unauthenticated()),
-      (isAuth) => isAuth ? null : emit(const Unauthenticated()),
+    await result.fold(
+      (_) async => emit(const Unauthenticated()),
+      (isAuth) async {
+        if (isAuth) {
+          final userResult = await _authRepository.getCurrentUser();
+          userResult.fold(
+            (_) => emit(const Unauthenticated()),
+            (user) {
+              if (user != null) {
+                emit(Authenticated(user));
+              } else {
+                emit(const Unauthenticated());
+              }
+            },
+          );
+        } else {
+          emit(const Unauthenticated());
+        }
+      },
     );
   }
 
