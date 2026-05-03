@@ -2,6 +2,7 @@ import 'package:dartz/dartz.dart';
 import '../../../../core/error/failures.dart';
 import '../entities/health_record.dart';
 import '../entities/health_trend.dart';
+import '../entities/record_count.dart';
 
 abstract class HealthRecordsRepository {
   Future<Either<Failure, HealthRecord>> logVitals({
@@ -44,5 +45,5 @@ abstract class HealthRecordsRepository {
 
   Future<Either<Failure, HealthTrendsData>> getTrends({int days = 30});
 
-  Future<Either<Failure, int>> getRecordCount();
+  Future<Either<Failure, RecordCount>> getRecordCount();
 }

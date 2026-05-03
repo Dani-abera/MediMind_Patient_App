@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/feedback/app_shimmer.dart';
@@ -30,14 +31,19 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     context.read<HomeBloc>().add(const HomeOpened());
-    context
-        .read<NotificationBloc>()
-        .add(const NotificationPollingStarted());
+    context.read<NotificationBloc>().add(const NotificationPollingStarted());
   }
 
   @override
   Widget build(BuildContext context) {
+    final user = context.read<AuthBloc>().state;
+    final userName = user is Authenticated ? user.user.fullName : 'there';
+    final avatarUrl = user is Authenticated ? user.user.profileImageUrl : null;
+
     return Scaffold(
+      appBar: AppBar(
+        title: HomePageAppBar(fullName: userName, avatarUrl: avatarUrl),
+      ),
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: BlocBuilder<HomeBloc, HomeState>(
@@ -72,12 +78,10 @@ class _HomePageState extends State<HomePage> {
             return RefreshIndicator(
               color: AppColors.primary,
               onRefresh: () async {
-                context
-                    .read<HomeBloc>()
-                    .add(const HomeRefreshed());
+                context.read<HomeBloc>().add(const HomeRefreshed());
                 await context.read<HomeBloc>().stream.firstWhere(
-                      (s) => s is! HomeLoading,
-                    );
+                  (s) => s is! HomeLoading,
+                );
               },
               child: CustomScrollView(
                 slivers: [
@@ -112,14 +116,10 @@ class _HomePageState extends State<HomePage> {
                         ),
                         SizedBox(height: 24.h),
                         if (data.latestPrediction != null) ...[
-                          PredictionTeaser(
-                            prediction: data.latestPrediction!,
-                          ),
+                          PredictionTeaser(prediction: data.latestPrediction!),
                           SizedBox(height: 24.h),
                         ],
-                        NearbyCentersSection(
-                          centers: data.nearbyCenters,
-                        ),
+                        NearbyCentersSection(centers: data.nearbyCenters),
                         SizedBox(height: 32.h),
                       ],
                     ),
@@ -186,10 +186,7 @@ class _HomeError extends StatelessWidget {
           SizedBox(height: 16.h),
           Text(message, style: AppTypography.body, textAlign: TextAlign.center),
           SizedBox(height: 24.h),
-          TextButton(
-            onPressed: onRetry,
-            child: const Text('Retry'),
-          ),
+          TextButton(onPressed: onRetry, child: const Text('Retry')),
         ],
       ),
     );

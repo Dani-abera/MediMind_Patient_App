@@ -88,7 +88,10 @@ class _RequestPredictionPageState extends State<RequestPredictionPage>
             );
           }
           if (state is PredictionInsufficientData) {
-            return _InsufficientDataView(dataPoints: state.dataPointsUsed);
+            return _InsufficientDataView(
+              dataPoints: state.dataPointsUsed,
+              canRequestPrediction: state.canRequestPrediction,
+            );
           }
           if (state is PredictionFailure) {
             return _ErrorView(
@@ -356,8 +359,12 @@ class _ProcessingView extends StatelessWidget {
 }
 
 class _InsufficientDataView extends StatelessWidget {
-  const _InsufficientDataView({required this.dataPoints});
+  const _InsufficientDataView({
+    required this.dataPoints,
+    required this.canRequestPrediction,
+  });
   final int dataPoints;
+  final bool canRequestPrediction;
 
   @override
   Widget build(BuildContext context) {
@@ -375,10 +382,12 @@ class _InsufficientDataView extends StatelessWidget {
                     .copyWith(fontWeight: FontWeight.w700)),
             SizedBox(height: 12.h),
             Text(
-              dataPoints == 0
-                  ? 'Please log at least one vital record before requesting a prediction.'
-                  : 'You have $dataPoints record${dataPoints == 1 ? '' : 's'}. '
-                      'Log more vitals to improve prediction confidence.',
+              !canRequestPrediction
+                  ? 'You currently do not have enough data to request a prediction. Please log more vitals.'
+                  : (dataPoints == 0
+                      ? 'Please log at least one vital record before requesting a prediction.'
+                      : 'You have $dataPoints record${dataPoints == 1 ? '' : 's'}. '
+                          'Log more vitals to improve prediction confidence.'),
               style: AppTypography.body
                   .copyWith(color: AppColors.neutral700),
               textAlign: TextAlign.center,

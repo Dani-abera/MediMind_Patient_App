@@ -20,8 +20,13 @@ class MedicationRemindersRemoteDataSourceImpl
   Future<List<MedicationReminderModel>> getReminders() async {
     try {
       final response = await _dio.get('/medication-reminders');
-      final items =
-          (response.data['items'] ?? response.data) as List<dynamic>;
+      final responseData = response.data;
+      List<dynamic> items = [];
+      if (responseData is List) {
+        items = responseData;
+      } else if (responseData is Map) {
+        items = (responseData['items'] ?? responseData['data'] ?? []) as List<dynamic>;
+      }
       return items
           .map((e) =>
               MedicationReminderModel.fromJson(e as Map<String, dynamic>))

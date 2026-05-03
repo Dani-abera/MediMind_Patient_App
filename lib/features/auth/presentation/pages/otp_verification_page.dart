@@ -95,14 +95,11 @@ class _OtpVerificationPageState extends State<OtpVerificationPage>
 
           context.read<AuthBloc>().add(UserLoggedIn(user));
 
-          Future.microtask(() {
-            if (!mounted) return;
-            if (user.isProfileComplete) {
-              context.goNamed(RouteNames.home);
-            } else {
-              context.goNamed(RouteNames.profileCompletion);
-            }
-          });
+          if (user.isProfileComplete) {
+            context.goNamed(RouteNames.home);
+          } else {
+            context.goNamed(RouteNames.profileCompletion);
+          }
         } else if (state is OtpFailure) {
           _shakeController
             ..stop()

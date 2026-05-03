@@ -3,6 +3,7 @@ import '../../../../core/error/exceptions.dart';
 import '../../../../core/error/failures.dart';
 import '../../domain/entities/health_record.dart';
 import '../../domain/entities/health_trend.dart';
+import '../../domain/entities/record_count.dart';
 import '../../domain/repositories/health_records_repository.dart';
 import '../datasources/health_records_remote_datasource.dart';
 import '../models/health_record_model.dart';
@@ -119,7 +120,7 @@ class HealthRecordsRepositoryImpl implements HealthRecordsRepository {
       _wrap(() => _remote.getTrends(days: days));
 
   @override
-  Future<Either<Failure, int>> getRecordCount() =>
+  Future<Either<Failure, RecordCount>> getRecordCount() =>
       _wrap(() => _remote.getRecordCount());
 
   Future<Either<Failure, T>> _wrap<T>(Future<T> Function() fn) async {

@@ -33,10 +33,14 @@ class PredictionProcessing extends PredictionState {
 
 // Insufficient data to generate a meaningful prediction
 class PredictionInsufficientData extends PredictionState {
-  const PredictionInsufficientData({required this.dataPointsUsed});
+  const PredictionInsufficientData({
+    required this.dataPointsUsed,
+    required this.canRequestPrediction,
+  });
   final int dataPointsUsed;
+  final bool canRequestPrediction;
   @override
-  List<Object?> get props => [dataPointsUsed];
+  List<Object?> get props => [dataPointsUsed, canRequestPrediction];
 }
 
 class PredictionSuccess extends PredictionState {

@@ -1,12 +1,13 @@
 import 'package:dio/dio.dart';
+
 import '../../../../core/error/exceptions.dart';
 import '../models/health_record_model.dart';
 import '../models/health_trend_model.dart';
+import '../models/record_count_model.dart';
 
 abstract class HealthRecordsRemoteDataSource {
   Future<HealthRecordModel> logVitals(Map<String, dynamic> body);
-  Future<HealthRecordModel> updateRecord(
-      String id, Map<String, dynamic> body);
+  Future<HealthRecordModel> updateRecord(String id, Map<String, dynamic> body);
   Future<List<HealthRecordModel>> getHealthRecords({
     DateTime? startDate,
     DateTime? endDate,
@@ -16,7 +17,7 @@ abstract class HealthRecordsRemoteDataSource {
   Future<HealthRecordModel?> getLatestRecord();
   Future<void> deleteRecord(String id);
   Future<HealthTrendsDataModel> getTrends({int days = 30});
-  Future<int> getRecordCount();
+  Future<RecordCountModel> getRecordCount();
 }
 
 class HealthRecordsRemoteDataSourceImpl
@@ -36,7 +37,9 @@ class HealthRecordsRemoteDataSourceImpl
 
   @override
   Future<HealthRecordModel> updateRecord(
-      String id, Map<String, dynamic> body) async {
+    String id,
+    Map<String, dynamic> body,
+  ) async {
     try {
       final response = await _dio.put('/health-records/$id', data: body);
       return HealthRecordModel.fromJson(response.data as Map<String, dynamic>);
@@ -62,11 +65,15 @@ class HealthRecordsRemoteDataSourceImpl
           if (endDate != null) 'endDate': endDate.toIso8601String(),
         },
       );
-      final items =
-          (response.data['items'] ?? response.data) as List<dynamic>;
+      final responseData = response.data;
+      List<dynamic> items = [];
+      if (responseData is List) {
+        items = responseData;
+      } else if (responseData is Map) {
+        items = (responseData['items'] ?? responseData['data'] ?? []) as List<dynamic>;
+      }
       return items
-          .map((e) =>
-              HealthRecordModel.fromJson(e as Map<String, dynamic>))
+          .map((e) => HealthRecordModel.fromJson(e as Map<String, dynamic>))
           .toList();
     } on DioException catch (e) {
       throw _mapDio(e);
@@ -78,8 +85,7 @@ class HealthRecordsRemoteDataSourceImpl
     try {
       final response = await _dio.get('/health-records/latest');
       if (response.data == null) return null;
-      return HealthRecordModel.fromJson(
-          response.data as Map<String, dynamic>);
+      return HealthRecordModel.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
       if (e.response?.statusCode == 404) return null;
       throw _mapDio(e);
@@ -103,17 +109,18 @@ class HealthRecordsRemoteDataSourceImpl
         queryParameters: {'days': days},
       );
       return HealthTrendsDataModel.fromJson(
-          response.data as Map<String, dynamic>);
+        response.data as Map<String, dynamic>,
+      );
     } on DioException catch (e) {
       throw _mapDio(e);
     }
   }
 
   @override
-  Future<int> getRecordCount() async {
+  Future<RecordCountModel> getRecordCount() async {
     try {
       final response = await _dio.get('/health-records/count');
-      return response.data['count'] as int? ?? 0;
+      return RecordCountModel.fromJson(response.data);
     } on DioException catch (e) {
       throw _mapDio(e);
     }

@@ -49,11 +49,13 @@ class PredictionBloc extends Bloc<PredictionEvent, PredictionState> {
   Future<void> _onRequested(
       PredictionRequested event, Emitter<PredictionState> emit) async {
     final countResult = await _getRecordCount();
-    final count = countResult.fold((_) => 0, (c) => c);
+    final recordCount = countResult.fold((_) => null, (c) => c);
 
-    // Confidence level thresholds per spec
-    if (count == 0) {
-      emit(const PredictionInsufficientData(dataPointsUsed: 0));
+    if (recordCount == null || !recordCount.canRequestPrediction) {
+      emit(PredictionInsufficientData(
+        dataPointsUsed: recordCount?.count ?? 0,
+        canRequestPrediction: recordCount?.canRequestPrediction ?? false,
+      ));
       return;
     }
 

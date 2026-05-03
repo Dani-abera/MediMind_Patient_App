@@ -54,7 +54,7 @@ class VitalsBloc extends Bloc<VitalsEvent, VitalsState> {
       (records) => emit(VitalsLoaded(
         records: records,
         latestRecord: latestResult.fold((_) => null, (r) => r),
-        totalCount: countResult.fold((_) => 0, (r) => r),
+        totalCount: countResult.fold((_) => 0, (r) => r.count),
       )),
     );
   }

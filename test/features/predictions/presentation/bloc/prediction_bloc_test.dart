@@ -3,6 +3,7 @@ import 'package:dartz/dartz.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:medimind/core/error/failures.dart';
 import 'package:medimind/features/health_records/domain/usecases/get_record_count_usecase.dart';
+import 'package:medimind/features/health_records/domain/entities/record_count.dart';
 import 'package:medimind/features/predictions/domain/entities/prediction.dart';
 import 'package:medimind/features/predictions/domain/usecases/get_latest_prediction_usecase.dart';
 import 'package:medimind/features/predictions/domain/usecases/get_prediction_by_id_usecase.dart';
@@ -105,11 +106,11 @@ void main() {
       'emits InsufficientData when 0 records',
       build: build,
       setUp: () {
-        when(() => mockCount()).thenAnswer((_) async => const Right(0));
+        when(() => mockCount()).thenAnswer((_) async => const Right(RecordCount(count: 0, canRequestPrediction: false)));
       },
       act: (bloc) => bloc.add(const PredictionRequested()),
       expect: () => [
-        const PredictionInsufficientData(dataPointsUsed: 0),
+        const PredictionInsufficientData(dataPointsUsed: 0, canRequestPrediction: false),
       ],
       verify: (_) => verifyNever(() => mockRequest()),
     );
@@ -118,7 +119,7 @@ void main() {
       'runs prediction when 1–6 records (low confidence)',
       build: build,
       setUp: () {
-        when(() => mockCount()).thenAnswer((_) async => const Right(3));
+        when(() => mockCount()).thenAnswer((_) async => const Right(RecordCount(count: 3, canRequestPrediction: true)));
         when(() => mockRequest())
             .thenAnswer((_) async => Right(_prediction));
       },
@@ -133,7 +134,7 @@ void main() {
       'runs prediction when 7–29 records (medium confidence)',
       build: build,
       setUp: () {
-        when(() => mockCount()).thenAnswer((_) async => const Right(15));
+        when(() => mockCount()).thenAnswer((_) async => const Right(RecordCount(count: 15, canRequestPrediction: true)));
         when(() => mockRequest())
             .thenAnswer((_) async => Right(_prediction));
       },
@@ -148,7 +149,7 @@ void main() {
       'runs prediction when 30+ records (high confidence)',
       build: build,
       setUp: () {
-        when(() => mockCount()).thenAnswer((_) async => const Right(45));
+        when(() => mockCount()).thenAnswer((_) async => const Right(RecordCount(count: 45, canRequestPrediction: true)));
         when(() => mockRequest())
             .thenAnswer((_) async => Right(_prediction));
       },
@@ -163,7 +164,7 @@ void main() {
       'emits failure on request error',
       build: build,
       setUp: () {
-        when(() => mockCount()).thenAnswer((_) async => const Right(10));
+        when(() => mockCount()).thenAnswer((_) async => const Right(RecordCount(count: 10, canRequestPrediction: true)));
         when(() => mockRequest()).thenAnswer((_) async =>
             const Left(ServerFailure(message: 'Model unavailable')));
       },
