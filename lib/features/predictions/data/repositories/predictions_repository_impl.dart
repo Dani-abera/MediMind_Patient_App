@@ -25,6 +25,8 @@ class PredictionsRepositoryImpl implements PredictionsRepository {
       return Left(NetworkFailure(message: e.message));
     } on ServerException catch (e) {
       return Left(ServerFailure(message: e.message, code: e.code));
+    } on NotFoundException catch (e) {
+      return Left(ServerFailure(message: 'Prediction not found', code: 404));
     } catch (e) {
       return Left(UnexpectedFailure(message: e.toString()));
     }
@@ -41,6 +43,8 @@ class PredictionsRepositoryImpl implements PredictionsRepository {
       return Left(NetworkFailure(message: e.message));
     } on ServerException catch (e) {
       return Left(ServerFailure(message: e.message, code: e.code));
+    } on NotFoundException catch (e) {
+      return Left(ServerFailure(message: 'Prediction not found', code: 404));
     } catch (e) {
       return Left(UnexpectedFailure(message: e.toString()));
     }
@@ -54,6 +58,8 @@ class PredictionsRepositoryImpl implements PredictionsRepository {
       return Left(NetworkFailure(message: e.message));
     } on ServerException catch (e) {
       return Left(ServerFailure(message: e.message, code: e.code));
+    } on NotFoundException catch (e) {
+      return Left(ServerFailure(message: 'Predictions not found', code: 404));
     } catch (e) {
       return Left(UnexpectedFailure(message: e.toString()));
     }
