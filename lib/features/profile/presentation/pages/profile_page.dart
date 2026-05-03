@@ -86,12 +86,12 @@ class _ProfilePageState extends State<ProfilePage> {
                     ProfileSectionItem(
                       icon: Icons.history_rounded,
                       label: 'Medical History',
-                      onTap: () {},
+                      onTap: () => context.pushNamed(RouteNames.medicalHistory),
                     ),
                     ProfileSectionItem(
                       icon: Icons.emergency_outlined,
                       label: 'Emergency Contacts',
-                      onTap: () {},
+                      onTap: () => context.pushNamed(RouteNames.emergencyContacts),
                     ),
                     ProfileSectionItem(
                       icon: Icons.payment_rounded,
