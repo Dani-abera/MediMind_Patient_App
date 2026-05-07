@@ -25,10 +25,6 @@ android {
         coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
     }
 
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
-    }
-
     defaultConfig {
         applicationId = "et.medimind.medimind"
         minSdk = flutter.minSdkVersion
@@ -47,6 +43,19 @@ android {
     }
 }
 
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
+}
+
 flutter {
     source = "../.."
+}
+
+// Disable Crashlytics mapping upload — not needed for local dev builds
+tasks.configureEach {
+    if (name.contains("uploadCrashlyticsMappingFile")) {
+        enabled = false
+    }
 }
