@@ -40,4 +40,18 @@ class PaymentsRepositoryImpl implements PaymentsRepository {
       return Left(UnexpectedFailure(message: e.toString()));
     }
   }
+
+  @override
+  Future<Either<Failure, String?>> getReceiptUrl(String paymentId) async {
+    try {
+      final url = await _remoteDataSource.getReceiptUrl(paymentId);
+      return Right(url);
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(message: e.message));
+    } on ServerException catch (e) {
+      return Left(ServerFailure(message: e.message, code: e.code));
+    } catch (e) {
+      return Left(UnexpectedFailure(message: e.toString()));
+    }
+  }
 }

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../../../core/di/service_locator.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../domain/entities/payment_record.dart';
+import '../../domain/usecases/get_receipt_url_usecase.dart';
 import '../bloc/payments_history_bloc.dart';
 import '../bloc/payments_history_event.dart';
 import '../bloc/payments_history_state.dart';
@@ -162,9 +165,9 @@ class _PaymentRecordCard extends StatelessWidget {
               Text(_formatDate(record.createdAt),
                   style: AppTypography.caption),
               const Spacer(),
-              if (record.receiptUrl != null)
+              if (record.receiptUrl != null || record.id.isNotEmpty)
                 TextButton.icon(
-                  onPressed: () {},
+                  onPressed: () => _openReceipt(context, record),
                   icon: Icon(Icons.receipt_outlined, size: 14.sp),
                   label: const Text('Receipt'),
                   style: TextButton.styleFrom(
@@ -179,6 +182,34 @@ class _PaymentRecordCard extends StatelessWidget {
 
   String _formatDate(DateTime dt) =>
       '${dt.day}/${dt.month}/${dt.year}';
+
+  Future<void> _openReceipt(BuildContext context, PaymentRecord record) async {
+    if (record.receiptUrl != null) {
+      await launchUrl(Uri.parse(record.receiptUrl!),
+          mode: LaunchMode.externalApplication);
+      return;
+    }
+    if (record.id.isEmpty) return;
+    final result = await sl<GetReceiptUrlUsecase>().call(record.id);
+    await result.fold(
+      (failure) async {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(failure.message)),
+          );
+        }
+      },
+      (url) async {
+        if (url != null && url.isNotEmpty) {
+          await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+        } else if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Receipt not available yet')),
+          );
+        }
+      },
+    );
+  }
 }
 
 class _ErrorView extends StatelessWidget {

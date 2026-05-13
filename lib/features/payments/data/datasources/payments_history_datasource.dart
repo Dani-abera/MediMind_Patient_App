@@ -15,11 +15,12 @@ class PaymentsHistoryDataSourceImpl implements PaymentsHistoryDataSource {
   Future<List<PaymentRecordModel>> getPaymentHistory(
       {int page = 1, int pageSize = 20}) async {
     try {
-      final res = await _dio.get('/payments/history',
+      final res = await _dio.get('/payments',
           queryParameters: {'page': page, 'pageSize': pageSize});
-      final list = res.data is List
-          ? res.data as List
-          : (res.data['items'] as List? ?? []);
+      final data = res.data;
+      final list = data is List
+          ? data
+          : (data['data'] as List? ?? data['items'] as List? ?? []);
       return list
           .map((e) =>
               PaymentRecordModel.fromJson(e as Map<String, dynamic>))

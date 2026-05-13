@@ -24,6 +24,7 @@ class AppointmentDetail extends Equatable {
     required this.totalAmount,
     required this.canCancel,
     required this.canReschedule,
+    this.cancellationPolicyHours = 2,
     this.doctorAvatarUrl,
     this.reasonForVisit,
     this.symptoms,
@@ -53,6 +54,7 @@ class AppointmentDetail extends Equatable {
   final double totalAmount;
   final bool canCancel;
   final bool canReschedule;
+  final int cancellationPolicyHours;
   final String? doctorAvatarUrl;
   final String? reasonForVisit;
   final String? symptoms;

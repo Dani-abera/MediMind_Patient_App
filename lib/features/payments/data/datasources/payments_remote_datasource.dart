@@ -5,6 +5,7 @@ import '../models/payment_model.dart';
 abstract class PaymentsRemoteDataSource {
   Future<PaymentModel> initiatePayment(String appointmentId);
   Future<PaymentModel> getPaymentStatus(String paymentId);
+  Future<String?> getReceiptUrl(String paymentId);
 }
 
 class PaymentsRemoteDataSourceImpl implements PaymentsRemoteDataSource {
@@ -31,6 +32,19 @@ class PaymentsRemoteDataSourceImpl implements PaymentsRemoteDataSource {
     try {
       final response = await _dio.get('/payments/$paymentId/status');
       return PaymentModel.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw e.error is Exception
+          ? e.error as Exception
+          : ServerException(message: e.message ?? 'Server error');
+    }
+  }
+
+  @override
+  Future<String?> getReceiptUrl(String paymentId) async {
+    try {
+      final response = await _dio.get('/payments/$paymentId/receipt');
+      final data = response.data;
+      return data is Map ? data['url'] as String? : null;
     } on DioException catch (e) {
       throw e.error is Exception
           ? e.error as Exception

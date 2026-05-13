@@ -50,12 +50,25 @@ class _AppointmentDetailPageState extends State<AppointmentDetailPage> {
   }
 
   Future<void> _cancel() async {
+    final hours = _detail?.cancellationPolicyHours ?? 2;
+    final policyNote = hours > 0
+        ? 'Cancellation requires at least $hours hour${hours == 1 ? '' : 's'} notice.'
+        : null;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Cancel Appointment?'),
-        content:
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             const Text('Are you sure you want to cancel this appointment?'),
+            if (policyNote != null) ...[
+              const SizedBox(height: 8),
+              Text(policyNote, style: AppTypography.caption),
+            ],
+          ],
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),

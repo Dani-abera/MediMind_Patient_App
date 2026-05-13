@@ -14,7 +14,7 @@ class PaymentRecordModel extends PaymentRecord {
 
   factory PaymentRecordModel.fromJson(Map<String, dynamic> json) =>
       PaymentRecordModel(
-        id: json['id'] as String? ?? json['_id'] as String? ?? '',
+        id: json['paymentId'] as String? ?? json['id'] as String? ?? json['_id'] as String? ?? '',
         amount: (json['amount'] as num?)?.toDouble() ?? 0,
         currency: json['currency'] as String? ?? 'ETB',
         status: _parseStatus(json['status'] as String? ?? ''),

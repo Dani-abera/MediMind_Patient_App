@@ -12,12 +12,13 @@ class PaymentModel extends Payment {
   });
 
   factory PaymentModel.fromJson(Map<String, dynamic> json) => PaymentModel(
-        id: json['id'] as String,
-        appointmentId: json['appointmentId'] as String,
-        amount: (json['amount'] as num).toDouble(),
+        id: json['paymentId'] as String? ?? json['id'] as String? ?? '',
+        appointmentId: json['appointmentId'] as String? ??
+            (json['appointmentDetails'] as Map<String, dynamic>?)?['appointmentId'] as String? ?? '',
+        amount: (json['totalAmount'] as num? ?? json['amount'] as num? ?? 0).toDouble(),
         status: _parseStatus(json['status'] as String?),
         checkoutUrl: json['checkoutUrl'] as String?,
-        txRef: json['txRef'] as String?,
+        txRef: json['txRef'] as String? ?? json['paymentRef'] as String?,
         currency: json['currency'] as String? ?? 'ETB',
       );
 
