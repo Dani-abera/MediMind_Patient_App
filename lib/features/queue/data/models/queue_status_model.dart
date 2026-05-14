@@ -12,13 +12,16 @@ class QueueStatusModel extends QueueStatus {
   });
 
   factory QueueStatusModel.fromJson(Map<String, dynamic> json) {
+    final rawQn = json['queueNumber']?.toString() ?? '';
+    final queueNumber =
+        int.tryParse(rawQn.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
     return QueueStatusModel(
-      appointmentId: json['appointmentId'] as String,
-      queueId: json['queueId'] as String,
-      queueNumber: json['queueNumber'] as int,
-      position: json['position'] as int,
-      estimatedWaitMinutes: json['estimatedWaitMinutes'] as int,
-      status: _parseStatus(json['status'] as String),
+      appointmentId: json['appointmentId'] as String? ?? '',
+      queueId: json['queueId'] as String? ?? '',
+      queueNumber: queueNumber,
+      position: json['currentPosition'] as int? ?? 0,
+      estimatedWaitMinutes: json['estimatedWaitTimeMinutes'] as int? ?? 0,
+      status: _parseStatus(json['status'] as String? ?? ''),
       roomNumber: json['roomNumber'] as String?,
     );
   }

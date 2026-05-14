@@ -30,6 +30,7 @@ class AppointmentDetailModel extends AppointmentDetail {
     super.reviewId,
     super.centerLatitude,
     super.centerLongitude,
+    super.videoConsultationId,
   });
 
   factory AppointmentDetailModel.fromJson(Map<String, dynamic> json) {
@@ -42,8 +43,10 @@ class AppointmentDetailModel extends AppointmentDetail {
       centerName: json['centerName'] as String,
       centerAddress: json['centerAddress'] as String? ?? '',
       centerPhone: json['centerPhone'] as String? ?? '',
-      appointmentTime:
-          DateTime.parse(json['appointmentTime'] as String),
+      appointmentTime: DateTime.parse(
+          json['dateTime'] as String? ??
+          json['appointmentTime'] as String? ??
+          ''),
       status: _parseStatus(json['status'] as String?),
       type: _parseType(json['type'] as String?),
       consultationFee:
@@ -65,6 +68,7 @@ class AppointmentDetailModel extends AppointmentDetail {
       reviewId: json['reviewId'] as String?,
       centerLatitude: (json['centerLatitude'] as num?)?.toDouble(),
       centerLongitude: (json['centerLongitude'] as num?)?.toDouble(),
+      videoConsultationId: json['videoConsultationId'] as String?,
     );
   }
 

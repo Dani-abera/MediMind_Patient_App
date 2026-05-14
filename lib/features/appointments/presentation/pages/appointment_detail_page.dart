@@ -4,10 +4,12 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/di/service_locator.dart';
+import '../../../../core/routing/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/feedback/app_shimmer.dart';
+import '../../../video_consultation/domain/repositories/video_consultation_repository.dart';
 import '../../domain/entities/appointment_detail.dart';
 import '../../domain/usecases/cancel_appointment_usecase.dart';
 import '../../domain/usecases/get_appointment_detail_usecase.dart';
@@ -26,11 +28,38 @@ class _AppointmentDetailPageState extends State<AppointmentDetailPage> {
   String? _error;
   bool _loading = true;
   bool _cancelling = false;
+  bool _joiningCall = false;
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  Future<void> _joinVideoCall(AppointmentDetail detail) async {
+    // Fast path: consultationId already in appointment DTO
+    if (detail.videoConsultationId != null) {
+      context.pushNamed(RouteNames.videoCall,
+          pathParameters: {'id': detail.videoConsultationId!});
+      return;
+    }
+    // Slow path: look up consultation by appointmentId
+    setState(() => _joiningCall = true);
+    final repo = sl<VideoConsultationRepository>();
+    final result =
+        await repo.getConsultationByAppointmentId(detail.id);
+    if (!mounted) return;
+    setState(() => _joiningCall = false);
+    result.fold(
+      (failure) => ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Doctor hasn\'t started the call yet. Please wait.'),
+          backgroundColor: AppColors.warning,
+        ),
+      ),
+      (consultation) => context.pushNamed(RouteNames.videoCall,
+          pathParameters: {'id': consultation.id}),
+    );
   }
 
   Future<void> _load() async {
@@ -168,6 +197,8 @@ class _AppointmentDetailPageState extends State<AppointmentDetailPage> {
               detail: d,
               cancelling: _cancelling,
               onCancel: _cancel,
+              joiningCall: _joiningCall,
+              onJoinCall: () => _joinVideoCall(d),
             ),
             SizedBox(height: 32.h),
           ],
@@ -369,37 +400,44 @@ class _QueueCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.all(16.r),
-      decoration: BoxDecoration(
-        color: AppColors.info.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border:
-            Border.all(color: AppColors.info.withValues(alpha: 0.3)),
+    return GestureDetector(
+      onTap: () => context.pushNamed(
+        RouteNames.queueStatus,
+        pathParameters: {'appointmentId': detail.id},
       ),
-      child: Row(
-        children: [
-          Icon(Icons.people_outline_rounded,
-              color: AppColors.info, size: 24.r),
-          SizedBox(width: 12.w),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'You are #${detail.queueNumber} in queue',
-                  style: AppTypography.body
-                      .copyWith(fontWeight: FontWeight.w600),
-                ),
-                if (detail.estimatedWaitMinutes != null)
+      child: Container(
+        padding: EdgeInsets.all(16.r),
+        decoration: BoxDecoration(
+          color: AppColors.info.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(color: AppColors.info.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.people_outline_rounded,
+                color: AppColors.info, size: 24.r),
+            SizedBox(width: 12.w),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    '~${detail.estimatedWaitMinutes} min wait',
-                    style: AppTypography.caption,
+                    'You are #${detail.queueNumber} in queue',
+                    style: AppTypography.body
+                        .copyWith(fontWeight: FontWeight.w600),
                   ),
-              ],
+                  if (detail.estimatedWaitMinutes != null)
+                    Text(
+                      '~${detail.estimatedWaitMinutes} min wait',
+                      style: AppTypography.caption,
+                    ),
+                ],
+              ),
             ),
-          ),
-        ],
+            Icon(Icons.chevron_right_rounded,
+                color: AppColors.info, size: 20.r),
+          ],
+        ),
       ),
     );
   }
@@ -410,11 +448,15 @@ class _ActionButtons extends StatelessWidget {
     required this.detail,
     required this.cancelling,
     required this.onCancel,
+    this.joiningCall = false,
+    this.onJoinCall,
   });
 
   final AppointmentDetail detail;
   final bool cancelling;
   final VoidCallback onCancel;
+  final bool joiningCall;
+  final VoidCallback? onJoinCall;
 
   @override
   Widget build(BuildContext context) {
@@ -463,10 +505,17 @@ class _ActionButtons extends StatelessWidget {
             detail.isUpcoming) ...[
           SizedBox(height: 12.h),
           ElevatedButton.icon(
-            onPressed: () {},
-            icon: const Icon(Icons.videocam_outlined, color: Colors.white),
+            onPressed: joiningCall ? null : onJoinCall,
+            icon: joiningCall
+                ? SizedBox(
+                    width: 18.w,
+                    height: 18.h,
+                    child: const CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white),
+                  )
+                : const Icon(Icons.videocam_outlined, color: Colors.white),
             label: Text(
-              'Join Video Call',
+              joiningCall ? 'Connecting...' : 'Join Video Call',
               style: AppTypography.body.copyWith(color: AppColors.white),
             ),
             style: ElevatedButton.styleFrom(

@@ -61,3 +61,10 @@ class VideoCallBitrateUpdated extends VideoCallEvent {
   @override
   List<Object?> get props => [kbps];
 }
+
+class VideoCallPeerJoined extends VideoCallEvent {
+  const VideoCallPeerJoined(this.connectionId);
+  final String connectionId;
+  @override
+  List<Object?> get props => [connectionId];
+}

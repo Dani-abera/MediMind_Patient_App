@@ -5,4 +5,5 @@ import '../entities/video_consultation.dart';
 abstract class VideoConsultationRepository {
   Future<Either<Failure, VideoConsultation>> getConsultation(String consultationId);
   Future<Either<Failure, String>> joinConsultation(String consultationId);
+  Future<Either<Failure, VideoConsultation>> getConsultationByAppointmentId(String appointmentId);
 }

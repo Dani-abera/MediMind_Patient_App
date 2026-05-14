@@ -28,4 +28,15 @@ class VideoConsultationRepositoryImpl implements VideoConsultationRepository {
       return Left(ServerFailure(message: e.message));
     }
   }
+
+  @override
+  Future<Either<Failure, VideoConsultation>> getConsultationByAppointmentId(
+      String appointmentId) async {
+    try {
+      return Right(
+          await _dataSource.getConsultationByAppointmentId(appointmentId));
+    } on ServerException catch (e) {
+      return Left(ServerFailure(message: e.message));
+    }
+  }
 }

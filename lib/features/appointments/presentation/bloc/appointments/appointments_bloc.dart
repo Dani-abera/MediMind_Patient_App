@@ -2,6 +2,7 @@ import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../domain/usecases/cancel_appointment_usecase.dart';
 import '../../../domain/usecases/get_appointment_detail_usecase.dart';
+import '../../../domain/usecases/get_past_appointments_usecase.dart';
 import '../../../domain/usecases/get_upcoming_appointments_usecase.dart';
 import 'appointments_event.dart';
 import 'appointments_state.dart';
@@ -10,8 +11,10 @@ class AppointmentsBloc extends Bloc<AppointmentsEvent, AppointmentsState> {
   AppointmentsBloc({
     required GetUpcomingAppointmentsUsecase getUpcoming,
     required GetAppointmentDetailUsecase getDetail,
+    required GetPastAppointmentsUsecase getPast,
     required CancelAppointmentUsecase cancelAppointment,
   })  : _getUpcoming = getUpcoming,
+        _getPast = getPast,
         _cancelAppointment = cancelAppointment,
         super(const AppointmentsInitial()) {
     on<AppointmentsRequested>(_onRequested, transformer: droppable());
@@ -21,6 +24,7 @@ class AppointmentsBloc extends Bloc<AppointmentsEvent, AppointmentsState> {
   }
 
   final GetUpcomingAppointmentsUsecase _getUpcoming;
+  final GetPastAppointmentsUsecase _getPast;
   final CancelAppointmentUsecase _cancelAppointment;
 
   Future<void> _onRequested(
@@ -28,14 +32,22 @@ class AppointmentsBloc extends Bloc<AppointmentsEvent, AppointmentsState> {
     Emitter<AppointmentsState> emit,
   ) async {
     emit(const AppointmentsLoading());
-    final result = await _getUpcoming();
-    result.fold(
+    final upcomingResult = await _getUpcoming();
+    final pastResult = await _getPast(page: 1);
+    upcomingResult.fold(
       (failure) => emit(AppointmentsError(failure.message)),
-      (upcoming) => emit(AppointmentsLoaded(
-        upcoming: upcoming,
-        past: const [],
-        hasMorePast: false,
-      )),
+      (upcoming) => pastResult.fold(
+        (_) => emit(AppointmentsLoaded(
+          upcoming: upcoming,
+          past: const [],
+          hasMorePast: false,
+        )),
+        (past) => emit(AppointmentsLoaded(
+          upcoming: upcoming,
+          past: past,
+          hasMorePast: past.length == 20,
+        )),
+      ),
     );
   }
 
@@ -60,7 +72,17 @@ class AppointmentsBloc extends Bloc<AppointmentsEvent, AppointmentsState> {
     PastAppointmentsLoadMore event,
     Emitter<AppointmentsState> emit,
   ) async {
-    // Past appointments loading handled externally; placeholder
+    final current = state;
+    if (current is! AppointmentsLoaded || !current.hasMorePast) return;
+    final nextPage = (current.past.length ~/ 20) + 1;
+    final result = await _getPast(page: nextPage);
+    result.fold(
+      (_) => null,
+      (more) => emit(current.copyWith(
+        past: [...current.past, ...more],
+        hasMorePast: more.length == 20,
+      )),
+    );
   }
 
   Future<void> _onCancelled(

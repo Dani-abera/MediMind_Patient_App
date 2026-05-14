@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:medimind/features/video_consultation/domain/entities/chat_message.dart';
 import 'package:medimind/features/video_consultation/domain/entities/video_consultation.dart';
 import 'package:medimind/features/video_consultation/domain/usecases/get_consultation_usecase.dart';
+import 'package:medimind/features/video_consultation/domain/usecases/join_consultation_usecase.dart';
 import 'package:medimind/features/video_consultation/presentation/bloc/video_call_bloc.dart';
 import 'package:medimind/features/video_consultation/presentation/bloc/video_call_event.dart';
 import 'package:medimind/features/video_consultation/presentation/bloc/video_call_state.dart';
@@ -13,6 +14,9 @@ import 'package:mocktail/mocktail.dart';
 
 class MockGetConsultationUsecase extends Mock
     implements GetConsultationUsecase {}
+
+class MockJoinConsultationUsecase extends Mock
+    implements JoinConsultationUsecase {}
 
 class MockVideoSignalRService extends Mock implements VideoSignalRService {}
 
@@ -27,6 +31,7 @@ final _consultation = VideoConsultation(
 
 void main() {
   late MockGetConsultationUsecase mockGetConsultation;
+  late MockJoinConsultationUsecase mockJoinConsultation;
   late MockVideoSignalRService mockSignalR;
 
   final offerStream = StreamController<Map<String, dynamic>>.broadcast();
@@ -37,6 +42,7 @@ void main() {
 
   setUp(() {
     mockGetConsultation = MockGetConsultationUsecase();
+    mockJoinConsultation = MockJoinConsultationUsecase();
     mockSignalR = MockVideoSignalRService();
 
     when(() => mockSignalR.onOffer)
@@ -57,6 +63,7 @@ void main() {
 
   VideoCallBloc build() => VideoCallBloc(
         getConsultation: mockGetConsultation,
+        joinConsultation: mockJoinConsultation,
         videoSignalR: mockSignalR,
       );
 

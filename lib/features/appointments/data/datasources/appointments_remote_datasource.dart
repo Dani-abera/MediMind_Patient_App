@@ -36,13 +36,17 @@ class AppointmentsRemoteDataSourceImpl
     String? symptoms,
   }) async {
     try {
+      final date =
+          '${appointmentTime.year}-${appointmentTime.month.toString().padLeft(2, '0')}-${appointmentTime.day.toString().padLeft(2, '0')}';
+      final time =
+          '${appointmentTime.hour.toString().padLeft(2, '0')}:${appointmentTime.minute.toString().padLeft(2, '0')}:00';
       final response = await _dio.post(
         '/appointments',
         data: {
           'doctorId': doctorId,
           'centerId': centerId,
-          'appointmentTime': appointmentTime.toIso8601String(),
-          'slotId': slotId,
+          'appointmentDate': date,
+          'appointmentTime': time,
           if (reasonForVisit != null) 'reasonForVisit': reasonForVisit,
           if (symptoms != null) 'symptoms': symptoms,
         },
@@ -113,7 +117,10 @@ class AppointmentsRemoteDataSourceImpl
   @override
   Future<void> cancelAppointment(String appointmentId) async {
     try {
-      await _dio.post('/appointments/$appointmentId/cancel');
+      await _dio.post(
+        '/appointments/$appointmentId/cancel',
+        data: {'cancellationReason': 'Cancelled by patient'},
+      );
     } on DioException catch (e) {
       throw e.error is Exception
           ? e.error as Exception

@@ -36,6 +36,7 @@ class AppointmentDetail extends Equatable {
     this.reviewId,
     this.centerLatitude,
     this.centerLongitude,
+    this.videoConsultationId,
   });
 
   final String id;
@@ -66,6 +67,7 @@ class AppointmentDetail extends Equatable {
   final String? reviewId;
   final double? centerLatitude;
   final double? centerLongitude;
+  final String? videoConsultationId;
 
   bool get isUpcoming =>
       status == AppointmentStatus.pending ||
@@ -89,5 +91,6 @@ class AppointmentDetail extends Equatable {
   @override
   List<Object?> get props => [
         id, doctorId, centerId, appointmentTime, status, paymentStatus,
+        videoConsultationId,
       ];
 }

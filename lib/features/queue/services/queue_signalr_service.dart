@@ -59,7 +59,7 @@ class QueueSignalRService extends SignalRService {
       _positionController.add(QueuePositionUpdate(
         queueId: data['queueId'] as String? ?? '',
         position: data['position'] as int? ?? 0,
-        estimatedWaitMinutes: data['estimatedWaitMinutes'] as int? ?? 0,
+        estimatedWaitMinutes: data['estimatedWaitTimeMinutes'] as int? ?? 0,
         status: _parseStatus(data['status'] as String? ?? ''),
       ));
     });
@@ -69,7 +69,8 @@ class QueueSignalRService extends SignalRService {
       final data = args[0] as Map<String, dynamic>? ?? {};
       _calledController.add(QueueCalledUpdate(
         queueId: data['queueId'] as String? ?? '',
-        queueNumber: data['queueNumber'] as int? ?? 0,
+        queueNumber: int.tryParse(
+            (data['queueNumber']?.toString() ?? '').replaceAll(RegExp(r'[^0-9]'), '')) ?? 0,
         patientName: data['patientName'] as String? ?? '',
         roomNumber: data['roomNumber'] as String?,
       ));
@@ -93,7 +94,7 @@ class QueueSignalRService extends SignalRService {
     _signalRFailCount = 0;
     stopPollingFallback();
     if (_currentAppointmentId != null) {
-      send('JoinPatientGroup', args: [_currentAppointmentId!]);
+      send('JoinPatientGroup', args: []);
     }
   }
 
@@ -112,7 +113,7 @@ class QueueSignalRService extends SignalRService {
   }
 
   Future<void> joinGroup(String appointmentId) async {
-    await send('JoinPatientGroup', args: [appointmentId]);
+    await send('JoinPatientGroup', args: []);
   }
 
   static QueueStatusType _parseStatus(String s) => switch (s.toLowerCase()) {

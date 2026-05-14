@@ -6,6 +6,7 @@ import 'domain/repositories/appointments_repository.dart';
 import 'domain/usecases/cancel_appointment_usecase.dart';
 import 'domain/usecases/create_appointment_usecase.dart';
 import 'domain/usecases/get_appointment_detail_usecase.dart';
+import 'domain/usecases/get_past_appointments_usecase.dart';
 import 'domain/usecases/get_upcoming_appointments_usecase.dart';
 import 'presentation/bloc/appointments/appointments_bloc.dart';
 import 'presentation/bloc/booking_flow/booking_flow_bloc.dart';
@@ -25,6 +26,8 @@ void initAppointmentsFeature(GetIt sl) {
   sl.registerLazySingleton(
       () => GetUpcomingAppointmentsUsecase(sl<AppointmentsRepository>()));
   sl.registerLazySingleton(
+      () => GetPastAppointmentsUsecase(sl<AppointmentsRepository>()));
+  sl.registerLazySingleton(
       () => GetAppointmentDetailUsecase(sl<AppointmentsRepository>()));
   sl.registerLazySingleton(
       () => CancelAppointmentUsecase(sl<AppointmentsRepository>()));
@@ -32,6 +35,7 @@ void initAppointmentsFeature(GetIt sl) {
   sl.registerFactory(
     () => AppointmentsBloc(
       getUpcoming: sl<GetUpcomingAppointmentsUsecase>(),
+      getPast: sl<GetPastAppointmentsUsecase>(),
       getDetail: sl<GetAppointmentDetailUsecase>(),
       cancelAppointment: sl<CancelAppointmentUsecase>(),
     ),

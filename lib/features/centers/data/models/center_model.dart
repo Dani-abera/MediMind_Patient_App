@@ -25,27 +25,27 @@ class CenterModel extends Center {
   factory CenterModel.fromJson(Map<String, dynamic> json,
       {double? distanceKm}) {
     return CenterModel(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      type: _parseType(json['type'] as String?),
+      id: json['centerId'] as String? ?? '',
+      name: json['centerName'] as String? ?? '',
+      type: _parseType(json['centerType'] as String?),
       address: json['address'] as String? ?? '',
       city: json['city'] as String? ?? '',
-      phone: json['phone'] as String? ?? '',
-      rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
-      reviewCount: (json['reviewCount'] as num?)?.toInt() ?? 0,
+      phone: json['phoneNumber'] as String? ?? '',
+      rating: 0.0,
+      reviewCount: 0,
       distanceKm: distanceKm ??
-          (json['distanceKm'] as num?)?.toDouble() ??
+          (json['distance'] as num?)?.toDouble() ??
           0.0,
       specializations: (json['specializations'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
           [],
       isOpenNow: json['isOpenNow'] as bool? ?? false,
-      isFavorite: json['isFavorite'] as bool? ?? false,
-      imageUrl: json['imageUrl'] as String?,
-      closingTime: json['closingTime'] as String?,
-      latitude: (json['latitude'] as num?)?.toDouble(),
-      longitude: (json['longitude'] as num?)?.toDouble(),
+      isFavorite: false,
+      imageUrl: null,
+      closingTime: null,
+      latitude: null,
+      longitude: null,
     );
   }
 
@@ -124,43 +124,48 @@ class CenterDetailModel extends CenterDetail {
   });
 
   factory CenterDetailModel.fromJson(Map<String, dynamic> json) {
+    final whRaw = json['workingHours'];
+    final workingHours = whRaw is Map<String, dynamic>
+        ? whRaw.entries.map((e) {
+            final parts = e.value.toString().split('-');
+            return WorkingHoursModel(
+              day: e.key,
+              openTime: parts.isNotEmpty ? parts[0] : '',
+              closeTime: parts.length > 1 ? parts[1] : '',
+              isOpen: true,
+            );
+          }).toList()
+        : <WorkingHoursModel>[];
+
     return CenterDetailModel(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      type: CenterModel._parseType(json['type'] as String?),
+      id: json['centerId'] as String? ?? '',
+      name: json['centerName'] as String? ?? '',
+      type: CenterModel._parseType(json['centerType'] as String?),
       address: json['address'] as String? ?? '',
       city: json['city'] as String? ?? '',
-      phone: json['phone'] as String? ?? '',
-      rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
-      reviewCount: (json['reviewCount'] as num?)?.toInt() ?? 0,
-      distanceKm: (json['distanceKm'] as num?)?.toDouble() ?? 0.0,
+      phone: json['phoneNumber'] as String? ?? '',
+      rating: 0.0,
+      reviewCount: 0,
+      distanceKm: (json['distance'] as num?)?.toDouble() ?? 0.0,
       specializations: (json['specializations'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
           [],
       isOpenNow: json['isOpenNow'] as bool? ?? false,
-      isFavorite: json['isFavorite'] as bool? ?? false,
-      imageUrl: json['imageUrl'] as String?,
-      closingTime: json['closingTime'] as String?,
-      latitude: (json['latitude'] as num?)?.toDouble(),
-      longitude: (json['longitude'] as num?)?.toDouble(),
-      services: (json['services'] as List<dynamic>?)
+      isFavorite: false,
+      imageUrl: null,
+      closingTime: null,
+      latitude: null,
+      longitude: null,
+      services: (json['servicesOffered'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
           [],
-      workingHours: (json['workingHours'] as List<dynamic>?)
-              ?.map((e) =>
-                  WorkingHoursModel.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          [],
-      reviews: (json['reviews'] as List<dynamic>?)
-              ?.map((e) =>
-                  CenterReviewModel.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          [],
-      website: json['website'] as String?,
+      workingHours: workingHours,
+      reviews: [],
+      website: null,
       email: json['email'] as String?,
-      about: json['about'] as String?,
+      about: null,
     );
   }
 }

@@ -4,6 +4,7 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:permission_handler/permission_handler.dart';
 import '../../domain/entities/chat_message.dart';
 import '../../domain/usecases/get_consultation_usecase.dart';
+import '../../domain/usecases/join_consultation_usecase.dart';
 import '../../services/video_signalr_service.dart';
 import 'video_call_event.dart';
 import 'video_call_state.dart';
@@ -11,6 +12,7 @@ import 'video_call_state.dart';
 class VideoCallBloc extends Bloc<VideoCallEvent, VideoCallState> {
   VideoCallBloc({
     required this.getConsultation,
+    required this.joinConsultation,
     required this.videoSignalR,
   }) : super(const VideoCallInitializing()) {
     on<VideoCallStarted>(_onStarted);
@@ -24,9 +26,11 @@ class VideoCallBloc extends Bloc<VideoCallEvent, VideoCallState> {
     on<VideoCallEndRequested>(_onEnded);
     on<VideoCallError>(_onError);
     on<VideoCallBitrateUpdated>(_onBitrateUpdated);
+    on<VideoCallPeerJoined>(_onPeerJoined);
   }
 
   final GetConsultationUsecase getConsultation;
+  final JoinConsultationUsecase joinConsultation;
   final VideoSignalRService videoSignalR;
 
   RTCPeerConnection? _peerConnection;
@@ -39,6 +43,9 @@ class VideoCallBloc extends Bloc<VideoCallEvent, VideoCallState> {
   StreamSubscription<dynamic>? _iceSub;
   StreamSubscription<dynamic>? _chatSub;
   StreamSubscription<dynamic>? _peerLeftSub;
+  StreamSubscription<dynamic>? _userJoinedSub;
+
+  bool _offerSent = false;
 
   RTCVideoRenderer? get localRenderer => _localRenderer;
   RTCVideoRenderer? get remoteRenderer => _remoteRenderer;
@@ -88,7 +95,9 @@ class VideoCallBloc extends Bloc<VideoCallEvent, VideoCallState> {
     });
 
     _peerConnection!.onIceCandidate = (candidate) {
-      videoSignalR.sendIceCandidate(candidate.toMap());
+      if (candidate.candidate != null) {
+        videoSignalR.sendIceCandidate(candidate.toMap());
+      }
     };
 
     _peerConnection!.onTrack = (event) {
@@ -97,7 +106,7 @@ class VideoCallBloc extends Bloc<VideoCallEvent, VideoCallState> {
       }
     };
 
-    // Connect SignalR and register handlers
+    // Register SignalR offer/answer/ICE handlers before connecting
     _offerSub = videoSignalR.onOffer.listen((sdp) async {
       await _peerConnection!
           .setRemoteDescription(RTCSessionDescription(sdp['sdp'], sdp['type']));
@@ -116,29 +125,40 @@ class VideoCallBloc extends Bloc<VideoCallEvent, VideoCallState> {
           c['candidate'], c['sdpMid'], c['sdpMLineIndex']));
     });
 
-    _chatSub = videoSignalR.onChatMessage.listen((msg) {
-      add(VideoCallMessageSent(msg.content));
-      // handled inline below via _chatMessages
-    });
-
     _peerLeftSub = videoSignalR.onPeerLeft.listen((_) {
       add(const VideoCallPeerLeft());
     });
 
+    // Connect to SignalR and join the room
     await videoSignalR.connectVideo(event.consultationId);
 
-    // Create and send offer
-    final offer = await _peerConnection!.createOffer();
-    await _peerConnection!.setLocalDescription(offer);
-    await videoSignalR.sendOffer({'sdp': offer.sdp, 'type': offer.type});
+    // Call the REST join endpoint to register participation and get peer list
+    final joinResult = await joinConsultation(event.consultationId);
+    joinResult.fold(
+      (failure) {
+        // Non-fatal: SignalR join still works; log but continue
+      },
+      (myConnectionId) {
+        // myConnectionId is our own SignalR connectionId (not peer's)
+      },
+    );
+
+    // Listen for a peer joining and send the offer to them
+    _userJoinedSub = videoSignalR.onUserJoined.listen((data) async {
+      if (!_offerSent) {
+        _offerSent = true;
+        final offer = await _peerConnection!.createOffer();
+        await _peerConnection!.setLocalDescription(offer);
+        await videoSignalR.sendOffer({'sdp': offer.sdp, 'type': offer.type});
+      }
+    });
 
     emit(VideoCallActive(
       consultation: consultation,
       messages: const [],
     ));
 
-    // Listen for incoming chat messages and append to state
-    _chatSub?.cancel();
+    // Listen for incoming chat messages
     _chatSub = videoSignalR.onChatMessage.listen((msg) {
       final current = state;
       if (current is VideoCallActive) {
@@ -149,6 +169,17 @@ class VideoCallBloc extends Bloc<VideoCallEvent, VideoCallState> {
         ));
       }
     });
+  }
+
+  Future<void> _onPeerJoined(
+      VideoCallPeerJoined event, Emitter<VideoCallState> emit) async {
+    // Peer joined — if we haven't sent an offer yet, send one now
+    if (!_offerSent && _peerConnection != null) {
+      _offerSent = true;
+      final offer = await _peerConnection!.createOffer();
+      await _peerConnection!.setLocalDescription(offer);
+      await videoSignalR.sendOffer({'sdp': offer.sdp, 'type': offer.type});
+    }
   }
 
   void _onMicToggled(
@@ -236,6 +267,7 @@ class VideoCallBloc extends Bloc<VideoCallEvent, VideoCallState> {
     _iceSub?.cancel();
     _chatSub?.cancel();
     _peerLeftSub?.cancel();
+    _userJoinedSub?.cancel();
     _localStream?.dispose();
     _peerConnection?.close();
     _localRenderer?.dispose();

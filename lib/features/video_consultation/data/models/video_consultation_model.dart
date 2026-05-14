@@ -14,18 +14,22 @@ class VideoConsultationModel extends VideoConsultation {
   });
 
   factory VideoConsultationModel.fromJson(Map<String, dynamic> json) {
+    final doctorInfo = json['doctorInfo'] as Map<String, dynamic>? ?? {};
     return VideoConsultationModel(
-      id: json['id'] as String,
-      doctorName: json['doctorName'] as String,
-      doctorSpecialty: json['doctorSpecialty'] as String,
-      doctorAvatarUrl: json['doctorAvatarUrl'] as String? ?? '',
-      status: _parseStatus(json['status'] as String),
-      scheduledAt: DateTime.parse(json['scheduledAt'] as String),
+      id: json['consultationId'] as String,
+      doctorName: doctorInfo['fullName'] as String? ?? '',
+      doctorSpecialty: doctorInfo['specialization'] as String? ?? '',
+      doctorAvatarUrl: doctorInfo['profileImageUrl'] as String? ?? '',
+      status: _parseStatus(json['status'] as String? ?? ''),
+      scheduledAt: _parseScheduledAt(
+        json['appointmentDate'] as String?,
+        json['appointmentTime'] as String?,
+      ),
       startedAt: json['startedAt'] != null
-          ? DateTime.parse(json['startedAt'] as String)
+          ? DateTime.tryParse(json['startedAt'] as String)
           : null,
       endedAt: json['endedAt'] != null
-          ? DateTime.parse(json['endedAt'] as String)
+          ? DateTime.tryParse(json['endedAt'] as String)
           : null,
       notes: json['notes'] as String?,
     );
@@ -33,9 +37,17 @@ class VideoConsultationModel extends VideoConsultation {
 
   static ConsultationStatus _parseStatus(String s) =>
       switch (s.toLowerCase()) {
-        'active' => ConsultationStatus.active,
-        'ended' => ConsultationStatus.ended,
+        'inprogress' || 'in_progress' || 'active' => ConsultationStatus.active,
+        'completed' || 'ended' => ConsultationStatus.ended,
         'cancelled' => ConsultationStatus.cancelled,
         _ => ConsultationStatus.scheduled,
       };
+
+  // Combines DateOnly "2026-05-15" + TimeOnly "09:00:00" into DateTime.
+  static DateTime _parseScheduledAt(String? date, String? time) {
+    if (date == null) return DateTime.now();
+    final datePart = date.split('T').first;
+    final timePart = (time ?? '00:00:00').split('.').first;
+    return DateTime.tryParse('${datePart}T$timePart') ?? DateTime.now();
+  }
 }

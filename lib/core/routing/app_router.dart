@@ -85,6 +85,7 @@ import '../../features/queue/presentation/bloc/queue_bloc.dart';
 import '../../features/queue/presentation/pages/queue_status_page.dart';
 import '../../features/queue/services/queue_signalr_service.dart';
 import '../../features/video_consultation/domain/usecases/get_consultation_usecase.dart';
+import '../../features/video_consultation/domain/usecases/join_consultation_usecase.dart';
 import '../../features/video_consultation/presentation/bloc/video_call_bloc.dart';
 import '../../features/video_consultation/presentation/pages/video_call_page.dart';
 import '../../features/video_consultation/services/video_signalr_service.dart';
@@ -299,6 +300,7 @@ class AppRouter {
         builder: (_, state) => BlocProvider(
           create: (_) => VideoCallBloc(
             getConsultation: sl<GetConsultationUsecase>(),
+            joinConsultation: sl<JoinConsultationUsecase>(),
             videoSignalR: sl<VideoSignalRService>(),
           ),
           child: VideoCallPage(
