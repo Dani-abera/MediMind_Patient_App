@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/appointments/presentation/bloc/appointments/appointments_bloc.dart';
-import '../../features/appointments/presentation/bloc/appointments/appointments_event.dart';
 import '../../features/appointments/presentation/bloc/booking_flow/booking_flow_bloc.dart';
 import '../../features/appointments/presentation/bloc/slot_picker/slot_picker_bloc.dart';
 import '../../features/appointments/presentation/bloc/slot_picker/slot_picker_event.dart';
@@ -60,7 +59,6 @@ import '../../features/notifications/presentation/pages/notification_preferences
 import '../../features/notifications/presentation/pages/notifications_page.dart';
 import '../../features/payments/presentation/bloc/payments_history_bloc.dart';
 import '../../features/payments/presentation/pages/payment_history_page.dart';
-import '../../features/payments/presentation/pages/payment_webview_page.dart';
 import '../../features/prescriptions/presentation/bloc/prescriptions_bloc.dart';
 import '../../features/prescriptions/presentation/pages/prescription_detail_page.dart';
 import '../../features/prescriptions/presentation/pages/prescriptions_list_page.dart';
@@ -359,8 +357,7 @@ class AppRouter {
                       create: (_) => sl<BookingFlowBloc>(),
                     ),
                     BlocProvider<AppointmentsBloc>(
-                      create: (_) => sl<AppointmentsBloc>()
-                        ..add(const AppointmentsRequested()),
+                      create: (_) => sl<AppointmentsBloc>(),
                     ),
                   ],
                   child: child,
@@ -411,9 +408,13 @@ class AppRouter {
                   GoRoute(
                     name: RouteNames.doctorDetail,
                     path: '/book/doctor/:id',
-                    builder: (_, state) => DoctorDetailPage(
-                      doctorId: state.pathParameters['id']!,
-                    ),
+                    builder: (_, state) {
+                      final extra = state.extra as Map<String, String>? ?? {};
+                      return DoctorDetailPage(
+                        doctorId: state.pathParameters['id']!,
+                        centerId: extra['centerId'] ?? '',
+                      );
+                    },
                   ),
                   GoRoute(
                     name: RouteNames.appointmentSlots,
@@ -435,18 +436,6 @@ class AppRouter {
                     name: RouteNames.appointmentConfirm,
                     path: '/book/confirm',
                     builder: (_, __) => const BookingSummaryPage(),
-                  ),
-                  GoRoute(
-                    name: RouteNames.paymentWebView,
-                    path: '/book/payment',
-                    builder: (_, state) {
-                      final extra =
-                          state.extra as Map<String, String>? ?? {};
-                      return PaymentWebViewPage(
-                        checkoutUrl: extra['checkoutUrl'] ?? '',
-                        paymentId: extra['paymentId'] ?? '',
-                      );
-                    },
                   ),
                   GoRoute(
                     name: RouteNames.appointmentSuccess,

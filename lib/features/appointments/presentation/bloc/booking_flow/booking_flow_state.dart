@@ -27,6 +27,11 @@ class BookingFlowState extends Equatable {
     this.createdAppointmentId,
     this.paymentId,
     this.checkoutUrl,
+    this.txRef,
+    this.patientEmail,
+    this.patientPhone,
+    this.patientFirstName,
+    this.patientLastName,
     this.error,
     this.step = BookingStep.selectCenter,
   });
@@ -42,6 +47,11 @@ class BookingFlowState extends Equatable {
   final String? createdAppointmentId;
   final String? paymentId;
   final String? checkoutUrl;
+  final String? txRef;
+  final String? patientEmail;
+  final String? patientPhone;
+  final String? patientFirstName;
+  final String? patientLastName;
   final String? error;
   final BookingStep step;
 
@@ -60,6 +70,11 @@ class BookingFlowState extends Equatable {
     String? createdAppointmentId,
     String? paymentId,
     String? checkoutUrl,
+    String? txRef,
+    String? patientEmail,
+    String? patientPhone,
+    String? patientFirstName,
+    String? patientLastName,
     String? error,
     BookingStep? step,
   }) => BookingFlowState(
@@ -74,6 +89,11 @@ class BookingFlowState extends Equatable {
     createdAppointmentId: createdAppointmentId ?? this.createdAppointmentId,
     paymentId: paymentId ?? this.paymentId,
     checkoutUrl: checkoutUrl ?? this.checkoutUrl,
+    txRef: txRef ?? this.txRef,
+    patientEmail: patientEmail ?? this.patientEmail,
+    patientPhone: patientPhone ?? this.patientPhone,
+    patientFirstName: patientFirstName ?? this.patientFirstName,
+    patientLastName: patientLastName ?? this.patientLastName,
     error: error,
     step: step ?? this.step,
   );
@@ -91,6 +111,11 @@ class BookingFlowState extends Equatable {
     createdAppointmentId,
     paymentId,
     checkoutUrl,
+    txRef,
+    patientEmail,
+    patientPhone,
+    patientFirstName,
+    patientLastName,
     error,
     step,
   ];

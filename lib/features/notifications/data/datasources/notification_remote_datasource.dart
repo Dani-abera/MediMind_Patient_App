@@ -94,7 +94,7 @@ class NotificationRemoteDataSourceImpl
   Future<void> registerDeviceToken(String token, String platform) async {
     try {
       await _dio.post('/notifications/device-token',
-          data: {'token': token, 'platform': platform});
+          data: {'fcmToken': token, 'platform': platform});
     } on DioException catch (e) {
       throw ServerException(
           message: e.response?.data?['message'] ?? e.message ?? 'Error');
@@ -105,7 +105,7 @@ class NotificationRemoteDataSourceImpl
   Future<void> unregisterDeviceToken(String token) async {
     try {
       await _dio.delete('/notifications/device-token',
-          data: {'token': token});
+          data: {'fcmToken': token});
     } on DioException catch (e) {
       throw ServerException(
           message: e.response?.data?['message'] ?? e.message ?? 'Error');

@@ -54,53 +54,57 @@ class GetHomeDataUsecase {
   final LocationService locationService;
 
   Future<Either<Failure, HomeData>> call() async {
-    final position = await locationService.getCurrentLocation();
+    try {
+      final position = await locationService.getCurrentLocation();
 
-    final results = await Future.wait([
-      repository.getUpcomingAppointment(),
-      repository.getLatestHealthRecord(),
-      repository.getLatestPrediction(),
-      repository.getNearbyCenters(
-        latitude: position.latitude,
-        longitude: position.longitude,
-      ),
-      repository.getUnreadNotificationCount(),
-    ]);
+      final results = await Future.wait([
+        repository.getUpcomingAppointment(),
+        repository.getLatestHealthRecord(),
+        repository.getLatestPrediction(),
+        repository.getNearbyCenters(
+          latitude: position.latitude,
+          longitude: position.longitude,
+        ),
+        repository.getUnreadNotificationCount(),
+      ]);
 
-    final failures = <String>[];
+      final failures = <String>[];
 
-    Appointment? appointment;
-    HealthRecord? record;
-    HealthPrediction? prediction;
-    List<HealthcareCenter> centers = [];
-    int unreadCount = 0;
+      Appointment? appointment;
+      HealthRecord? record;
+      HealthPrediction? prediction;
+      List<HealthcareCenter> centers = [];
+      int unreadCount = 0;
 
-    results[0].fold((_) => failures.add('appointments'),
-        (v) => appointment = v as Appointment?);
-    results[1].fold((_) => failures.add('health_record'),
-        (v) => record = v as HealthRecord?);
-    results[2].fold((_) => failures.add('prediction'),
-        (v) => prediction = v as HealthPrediction?);
-    results[3].fold(
-      (_) => failures.add('centers'),
-      (v) => centers = (v as List).cast<HealthcareCenter>(),
-    );
-    results[4].fold(
-        (_) => failures.add('notifications'), (v) => unreadCount = v as int);
-
-    if (failures.length == 5) {
-      return Left(
-        const ServerFailure(message: 'Failed to load dashboard data'),
+      results[0].fold((_) => failures.add('appointments'),
+          (v) => appointment = v as Appointment?);
+      results[1].fold((_) => failures.add('health_record'),
+          (v) => record = v as HealthRecord?);
+      results[2].fold((_) => failures.add('prediction'),
+          (v) => prediction = v as HealthPrediction?);
+      results[3].fold(
+        (_) => failures.add('centers'),
+        (v) => centers = (v as List).cast<HealthcareCenter>(),
       );
-    }
+      results[4].fold(
+          (_) => failures.add('notifications'), (v) => unreadCount = v as int);
 
-    return Right(HomeData(
-      upcomingAppointment: appointment,
-      latestHealthRecord: record,
-      latestPrediction: prediction,
-      nearbyCenters: centers,
-      unreadCount: unreadCount,
-      failedSections: failures,
-    ));
+      if (failures.length == 5) {
+        return const Left(
+          ServerFailure(message: 'Failed to load dashboard data'),
+        );
+      }
+
+      return Right(HomeData(
+        upcomingAppointment: appointment,
+        latestHealthRecord: record,
+        latestPrediction: prediction,
+        nearbyCenters: centers,
+        unreadCount: unreadCount,
+        failedSections: failures,
+      ));
+    } catch (e) {
+      return Left(UnexpectedFailure(message: e.toString()));
+    }
   }
 }

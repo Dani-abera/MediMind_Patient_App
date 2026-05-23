@@ -10,6 +10,7 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/feedback/app_shimmer.dart';
 import '../../../appointments/presentation/bloc/booking_flow/booking_flow_bloc.dart';
 import '../../../appointments/presentation/bloc/booking_flow/booking_flow_event.dart';
+import '../../../../core/routing/route_names.dart';
 import '../../domain/entities/center_detail.dart';
 import '../../domain/usecases/get_center_detail_usecase.dart';
 
@@ -275,7 +276,11 @@ class _CenterDetailPageState extends State<CenterDetailPage> {
               context
                   .read<BookingFlowBloc>()
                   .add(CenterSelected(detail));
-              context.push('/book/doctors/${detail.id}');
+              context.pushNamed(
+                RouteNames.centerDoctors,
+                pathParameters: {'centerId': detail.id},
+                queryParameters: {'name': detail.name},
+              );
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,

@@ -4,6 +4,7 @@ import 'package:dartz/dartz.dart';
 
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/error/failures.dart';
+import '../../../../core/network/auth_interceptor.dart';
 import '../../domain/entities/user.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_local_datasource.dart';
@@ -17,7 +18,13 @@ class AuthRepositoryImpl implements AuthRepository {
   AuthRepositoryImpl({
     required this.remoteDataSource,
     required this.localDataSource,
-  });
+  }) {
+    AuthEventBus.instance.events.listen((event) {
+      if (event == AuthEvent.logout) {
+        _authStatusController.add(AuthStatus.unauthenticated);
+      }
+    });
+  }
 
   final AuthRemoteDataSource remoteDataSource;
   final AuthLocalDataSource localDataSource;
@@ -90,7 +97,7 @@ class AuthRepositoryImpl implements AuthRepository {
         patientId: tokens.userId,
         fullName: tokens.fullName,
         phoneNumber: phoneNumber,
-        isProfileComplete: true,
+        isProfileComplete: tokens.isProfileComplete,
       );
       
       await localDataSource.cacheUser(user);

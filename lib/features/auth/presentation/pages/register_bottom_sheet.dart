@@ -109,6 +109,8 @@ class _RegisterSheetContentState extends State<_RegisterSheetContent> {
           },
         ),
         BlocListener<OtpBloc, OtpState>(
+          listenWhen: (previous, current) =>
+              current is OtpSent && previous is! OtpSent,
           listener: (context, state) {
             if (state is OtpSent) {
               Navigator.of(context).pop();

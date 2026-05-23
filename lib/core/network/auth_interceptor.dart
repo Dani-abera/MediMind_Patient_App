@@ -42,6 +42,13 @@ class AuthInterceptor extends Interceptor {
       return;
     }
 
+    // Guard: if the refresh endpoint itself returned 401, don't retry (prevents deadlock)
+    if (err.requestOptions.path == ApiConstants.authRefreshEndpoint) {
+      _logout();
+      handler.next(err);
+      return;
+    }
+
     // Prevent concurrent refreshes
     if (_refreshCompleter != null) {
       final success = await _refreshCompleter!.future;

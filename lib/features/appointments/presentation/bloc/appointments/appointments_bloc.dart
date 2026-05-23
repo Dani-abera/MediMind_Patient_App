@@ -31,41 +31,49 @@ class AppointmentsBloc extends Bloc<AppointmentsEvent, AppointmentsState> {
     AppointmentsRequested event,
     Emitter<AppointmentsState> emit,
   ) async {
-    emit(const AppointmentsLoading());
-    final upcomingResult = await _getUpcoming();
-    final pastResult = await _getPast(page: 1);
-    upcomingResult.fold(
-      (failure) => emit(AppointmentsError(failure.message)),
-      (upcoming) => pastResult.fold(
-        (_) => emit(AppointmentsLoaded(
-          upcoming: upcoming,
-          past: const [],
-          hasMorePast: false,
-        )),
-        (past) => emit(AppointmentsLoaded(
-          upcoming: upcoming,
-          past: past,
-          hasMorePast: past.length == 20,
-        )),
-      ),
-    );
+    try {
+      emit(const AppointmentsLoading());
+      final upcomingResult = await _getUpcoming();
+      final pastResult = await _getPast(page: 1);
+      upcomingResult.fold(
+        (failure) => emit(AppointmentsError(failure.message)),
+        (upcoming) => pastResult.fold(
+          (_) => emit(AppointmentsLoaded(
+            upcoming: upcoming,
+            past: const [],
+            hasMorePast: false,
+          )),
+          (past) => emit(AppointmentsLoaded(
+            upcoming: upcoming,
+            past: past,
+            hasMorePast: past.length == 20,
+          )),
+        ),
+      );
+    } catch (e) {
+      emit(AppointmentsError(e.toString()));
+    }
   }
 
   Future<void> _onRefreshed(
     AppointmentsRefreshed event,
     Emitter<AppointmentsState> emit,
   ) async {
-    final result = await _getUpcoming();
-    result.fold(
-      (failure) => emit(AppointmentsError(failure.message)),
-      (upcoming) => emit(AppointmentsLoaded(
-        upcoming: upcoming,
-        past: state is AppointmentsLoaded
-            ? (state as AppointmentsLoaded).past
-            : const [],
-        hasMorePast: false,
-      )),
-    );
+    try {
+      final result = await _getUpcoming();
+      result.fold(
+        (failure) => emit(AppointmentsError(failure.message)),
+        (upcoming) => emit(AppointmentsLoaded(
+          upcoming: upcoming,
+          past: state is AppointmentsLoaded
+              ? (state as AppointmentsLoaded).past
+              : const [],
+          hasMorePast: false,
+        )),
+      );
+    } catch (e) {
+      emit(AppointmentsError(e.toString()));
+    }
   }
 
   Future<void> _onLoadMore(

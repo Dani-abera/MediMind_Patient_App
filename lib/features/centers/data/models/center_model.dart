@@ -44,8 +44,8 @@ class CenterModel extends Center {
       isFavorite: false,
       imageUrl: null,
       closingTime: null,
-      latitude: null,
-      longitude: null,
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
     );
   }
 
@@ -127,7 +127,12 @@ class CenterDetailModel extends CenterDetail {
     final whRaw = json['workingHours'];
     final workingHours = whRaw is Map<String, dynamic>
         ? whRaw.entries.map((e) {
-            final parts = e.value.toString().split('-');
+            final val = e.value as String?;
+            if (val == null) {
+              return WorkingHoursModel(
+                  day: e.key, openTime: '', closeTime: '', isOpen: false);
+            }
+            final parts = val.split('-');
             return WorkingHoursModel(
               day: e.key,
               openTime: parts.isNotEmpty ? parts[0] : '',
@@ -155,8 +160,8 @@ class CenterDetailModel extends CenterDetail {
       isFavorite: false,
       imageUrl: null,
       closingTime: null,
-      latitude: null,
-      longitude: null,
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
       services: (json['servicesOffered'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??

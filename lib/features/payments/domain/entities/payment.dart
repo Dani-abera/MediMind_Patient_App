@@ -11,6 +11,10 @@ class Payment extends Equatable {
     this.checkoutUrl,
     this.txRef,
     this.currency = 'ETB',
+    this.patientEmail,
+    this.patientPhone,
+    this.patientFirstName,
+    this.patientLastName,
   });
 
   final String id;
@@ -20,6 +24,10 @@ class Payment extends Equatable {
   final String? checkoutUrl;
   final String? txRef;
   final String currency;
+  final String? patientEmail;
+  final String? patientPhone;
+  final String? patientFirstName;
+  final String? patientLastName;
 
   bool get isCompleted => status == PaymentStatus.completed;
 

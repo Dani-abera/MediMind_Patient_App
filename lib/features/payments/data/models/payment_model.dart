@@ -9,6 +9,10 @@ class PaymentModel extends Payment {
     super.checkoutUrl,
     super.txRef,
     super.currency,
+    super.patientEmail,
+    super.patientPhone,
+    super.patientFirstName,
+    super.patientLastName,
   });
 
   factory PaymentModel.fromJson(Map<String, dynamic> json) => PaymentModel(
@@ -18,8 +22,12 @@ class PaymentModel extends Payment {
         amount: (json['totalAmount'] as num? ?? json['amount'] as num? ?? 0).toDouble(),
         status: _parseStatus(json['status'] as String?),
         checkoutUrl: json['checkoutUrl'] as String?,
-        txRef: json['txRef'] as String? ?? json['paymentRef'] as String?,
+        txRef: json['paymentRef'] as String? ?? json['txRef'] as String?,
         currency: json['currency'] as String? ?? 'ETB',
+        patientEmail: json['patientEmail'] as String?,
+        patientPhone: json['patientPhone'] as String?,
+        patientFirstName: json['patientFirstName'] as String?,
+        patientLastName: json['patientLastName'] as String?,
       );
 
   static PaymentStatus _parseStatus(String? s) =>

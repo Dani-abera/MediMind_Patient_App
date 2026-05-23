@@ -25,7 +25,6 @@ class RouteNames {
   static const String appointmentSlots = 'appointmentSlots';
   static const String appointmentConfirm = 'appointmentConfirm';
   static const String appointmentSuccess = 'appointmentSuccess';
-  static const String paymentWebView = 'paymentWebView';
 
   // Appointments
   static const String myAppointments = 'myAppointments';

@@ -178,6 +178,7 @@ class _CenterDoctorsPageState extends State<CenterDoctorsPage> {
           onTap: () => context.pushNamed(
             RouteNames.doctorDetail,
             pathParameters: {'id': _doctors[i].id},
+            extra: {'centerId': widget.centerId},
           ),
         ),
       ),

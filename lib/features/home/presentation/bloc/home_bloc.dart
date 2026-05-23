@@ -24,16 +24,20 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
   }
 
   Future<void> _load(Emitter<HomeState> emit) async {
-    final result = await _getHomeData();
-    result.fold(
-      (failure) => emit(HomeError(failure.message)),
-      (data) {
-        if (data.failedSections.isEmpty) {
-          emit(HomeLoaded(data));
-        } else {
-          emit(HomePartialLoaded(data: data, errors: data.failedSections));
-        }
-      },
-    );
+    try {
+      final result = await _getHomeData();
+      result.fold(
+        (failure) => emit(HomeError(failure.message)),
+        (data) {
+          if (data.failedSections.isEmpty) {
+            emit(HomeLoaded(data));
+          } else {
+            emit(HomePartialLoaded(data: data, errors: data.failedSections));
+          }
+        },
+      );
+    } catch (e) {
+      emit(HomeError(e.toString()));
+    }
   }
 }

@@ -7,6 +7,7 @@ class AuthTokens extends Equatable {
     required this.userId,
     required this.userType,
     required this.fullName,
+    required this.isProfileComplete,
   });
 
   final String accessToken;
@@ -14,6 +15,7 @@ class AuthTokens extends Equatable {
   final String userId;
   final String userType;
   final String fullName;
+  final bool isProfileComplete;
 
   @override
   List<Object?> get props => [
@@ -22,5 +24,6 @@ class AuthTokens extends Equatable {
     userId,
     userType,
     fullName,
+    isProfileComplete,
   ];
 }

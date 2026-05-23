@@ -14,8 +14,9 @@ import '../../domain/entities/doctor.dart';
 import '../../domain/usecases/get_doctor_detail_usecase.dart';
 
 class DoctorDetailPage extends StatefulWidget {
-  const DoctorDetailPage({super.key, required this.doctorId});
+  const DoctorDetailPage({super.key, required this.doctorId, required this.centerId});
   final String doctorId;
+  final String centerId;
 
   @override
   State<DoctorDetailPage> createState() => _DoctorDetailPageState();
@@ -146,7 +147,10 @@ class _DoctorDetailPageState extends State<DoctorDetailPage> {
               context
                   .read<BookingFlowBloc>()
                   .add(DoctorSelected(d));
-              context.pushNamed(RouteNames.appointmentSlots);
+              context.pushNamed(
+                RouteNames.appointmentSlots,
+                extra: {'doctorId': d.id, 'centerId': widget.centerId},
+              );
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,

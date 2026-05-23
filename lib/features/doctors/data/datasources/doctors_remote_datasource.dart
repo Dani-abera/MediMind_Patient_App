@@ -72,7 +72,8 @@ class DoctorsRemoteDataSourceImpl implements DoctorsRemoteDataSource {
           if (name != null) 'name': name,
         },
       );
-      final items = response.data as List<dynamic>;
+      final data = response.data;
+      final items = (data is Map ? data['items'] : data) as List<dynamic>;
       return items
           .map((e) => DoctorModel.fromJson(e as Map<String, dynamic>))
           .toList();
@@ -111,10 +112,15 @@ class DoctorsRemoteDataSourceImpl implements DoctorsRemoteDataSource {
       final items = response.data as List<dynamic>;
       return items.map((e) {
         final map = e as Map<String, dynamic>;
+        final timeStr = map['time'] as String? ?? '00:00:00';
+        final parts = timeStr.split(':');
+        final hour = int.tryParse(parts[0]) ?? 0;
+        final minute = int.tryParse(parts.length > 1 ? parts[1] : '0') ?? 0;
+        final slotDateTime = DateTime(date.year, date.month, date.day, hour, minute);
         return TimeSlot(
-          id: map['id'] as String,
-          dateTime: DateTime.parse(map['dateTime'] as String),
-          isBooked: map['isBooked'] as bool? ?? false,
+          id: '${dateStr}_$timeStr',
+          dateTime: slotDateTime,
+          isBooked: !(map['isAvailable'] as bool? ?? true),
         );
       }).toList();
     } on DioException catch (e) {

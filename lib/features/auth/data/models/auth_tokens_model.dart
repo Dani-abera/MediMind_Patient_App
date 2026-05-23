@@ -7,6 +7,7 @@ class AuthTokensModel extends AuthTokens {
     required super.userId,
     required super.userType,
     required super.fullName,
+    required super.isProfileComplete,
   });
 
   factory AuthTokensModel.fromJson(Map<String, dynamic> json) {
@@ -16,6 +17,7 @@ class AuthTokensModel extends AuthTokens {
       userId: json['userId'],
       userType: json['userType'],
       fullName: json['fullName'],
+      isProfileComplete: json['isProfileComplete'] as bool? ?? false,
     );
   }
 

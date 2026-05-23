@@ -53,6 +53,9 @@ class _PhoneEntryPageState extends State<PhoneEntryPage> {
   @override
   Widget build(BuildContext context) {
     return BlocListener<OtpBloc, OtpState>(
+      listenWhen: (previous, current) =>
+          (current is OtpSent && previous is! OtpSent) ||
+          (current is OtpFailure && current.remainingSeconds == 0),
       listener: (context, state) {
         if (state is OtpSent) {
           context.goNamed(

@@ -69,6 +69,7 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
       userId: '',
       userType: '',
       fullName: '',
+      isProfileComplete: true,
     );
   }
 

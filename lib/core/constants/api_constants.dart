@@ -13,4 +13,7 @@ class ApiConstants {
   static const Duration receiveTimeout = Duration(seconds: 30);
 
   static const String authRefreshEndpoint = '/auth/refresh-token';
+
+  static String get chapaPublicKey =>
+      dotenv.env['CHAPA_PUBLIC_KEY'] ?? '';
 }

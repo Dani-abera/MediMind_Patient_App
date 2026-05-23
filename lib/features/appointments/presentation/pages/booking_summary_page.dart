@@ -1,8 +1,11 @@
+import 'package:chapasdk/chapasdk.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../../core/constants/api_constants.dart';
+import '../../../../core/routing/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -32,12 +35,43 @@ class _BookingSummaryPageState extends State<BookingSummaryPage> {
   Widget build(BuildContext context) {
     return BlocConsumer<BookingFlowBloc, BookingFlowState>(
       listener: (context, state) {
-        if (state.step == BookingStep.payment &&
-            state.checkoutUrl != null) {
-          context.push('/book/payment', extra: {
-            'checkoutUrl': state.checkoutUrl,
-            'paymentId': state.paymentId,
-          });
+        if (state.step == BookingStep.payment && state.txRef != null) {
+          Chapa.paymentParameters(
+            context: context,
+            publicKey: ApiConstants.chapaPublicKey,
+            currency: 'ETB',
+            amount: state.totalAmount.toStringAsFixed(2),
+            email: state.patientEmail ?? '',
+            phone: state.patientPhone ?? '',
+            firstName: state.patientFirstName ?? '',
+            lastName: state.patientLastName ?? '',
+            txRef: state.txRef ?? '',
+            title: 'Appointment Payment',
+            desc: 'Consultation with Dr. ${state.selectedDoctor?.fullName ?? ''}',
+            nativeCheckout: true,
+            namedRouteFallBack: '',
+            showPaymentMethodsOnGridView: true,
+            availablePaymentMethods: ['telebirr', 'cbebirr', 'ebirr'],
+            onPaymentFinished: (message, reference, amount) {
+              if (message == 'paymentSuccessful') {
+                context.read<BookingFlowBloc>().add(const PaymentCompleted());
+                context.goNamed(RouteNames.appointmentSuccess);
+              } else if (message == 'paymentCancelled') {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Payment cancelled. Your booking is reserved.'),
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Payment failed. Please try again.'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+          );
         }
         if (state.error != null && !state.isProcessing) {
           ScaffoldMessenger.of(context).showSnackBar(
