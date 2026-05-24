@@ -14,6 +14,6 @@ class ApiConstants {
 
   static const String authRefreshEndpoint = '/auth/refresh-token';
 
-  static String get chapaPublicKey =>
-      dotenv.env['CHAPA_PUBLIC_KEY'] ?? '';
+  //static final String? chapaPublicKey = dotenv.env['CHAPA_PUBLIC_KEY'];
+  static String get chapaPublicKey => dotenv.env['CHAPA_PUBLIC_KEY'] ?? '';
 }

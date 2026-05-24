@@ -31,6 +31,8 @@ class AppointmentDetailModel extends AppointmentDetail {
     super.centerLatitude,
     super.centerLongitude,
     super.videoConsultationId,
+    super.canInitiateVideoConsultation,
+    super.videoConsultationStatus,
   });
 
   factory AppointmentDetailModel.fromJson(Map<String, dynamic> json) {
@@ -69,6 +71,9 @@ class AppointmentDetailModel extends AppointmentDetail {
       centerLatitude: (json['centerLatitude'] as num?)?.toDouble(),
       centerLongitude: (json['centerLongitude'] as num?)?.toDouble(),
       videoConsultationId: json['videoConsultationId'] as String?,
+      canInitiateVideoConsultation:
+          json['canInitiateVideoConsultation'] as bool? ?? false,
+      videoConsultationStatus: json['videoConsultationStatus'] as String?,
     );
   }
 
@@ -83,7 +88,7 @@ class AppointmentDetailModel extends AppointmentDetail {
 
   static AppointmentType _parseType(String? s) =>
       switch (s?.toLowerCase()) {
-        'video' => AppointmentType.video,
+        'videoconsultation' || 'video' => AppointmentType.video,
         'homevisit' => AppointmentType.homeVisit,
         _ => AppointmentType.inPerson,
       };

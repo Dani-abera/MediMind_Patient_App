@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/routing/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -34,24 +35,38 @@ class _BookingSummaryPageState extends State<BookingSummaryPage> {
   @override
   Widget build(BuildContext context) {
     return BlocConsumer<BookingFlowBloc, BookingFlowState>(
+      listenWhen: (prev, curr) {
+        final stepChangedToPayment =
+            curr.step == BookingStep.payment &&
+            prev.step != BookingStep.payment;
+        final newError =
+            curr.error != null &&
+            curr.error != prev.error &&
+            !curr.isProcessing;
+        return stepChangedToPayment || newError;
+      },
       listener: (context, state) {
         if (state.step == BookingStep.payment && state.txRef != null) {
+          final amount = (state.serverTotalAmount ?? state.totalAmount)
+              .toStringAsFixed(2);
           Chapa.paymentParameters(
             context: context,
             publicKey: ApiConstants.chapaPublicKey,
             currency: 'ETB',
-            amount: state.totalAmount.toStringAsFixed(2),
-            email: state.patientEmail ?? '',
+            amount: amount,
+            email: 'danielabera285@gmail.com',
+            //email: state.patientEmail ?? '',
             phone: state.patientPhone ?? '',
             firstName: state.patientFirstName ?? '',
             lastName: state.patientLastName ?? '',
             txRef: state.txRef ?? '',
             title: 'Appointment Payment',
-            desc: 'Consultation with Dr. ${state.selectedDoctor?.fullName ?? ''}',
+            desc:
+                'Consultation with Dr. ${state.selectedDoctor?.fullName ?? ''}',
             nativeCheckout: true,
-            namedRouteFallBack: '',
+            namedRouteFallBack: '/home',
             showPaymentMethodsOnGridView: true,
-            availablePaymentMethods: ['telebirr', 'cbebirr', 'ebirr'],
+            availablePaymentMethods: ['mpesa', 'cbebirr', 'telebirr', 'ebirr'],
             onPaymentFinished: (message, reference, amount) {
               if (message == 'paymentSuccessful') {
                 context.read<BookingFlowBloc>().add(const PaymentCompleted());
@@ -59,7 +74,9 @@ class _BookingSummaryPageState extends State<BookingSummaryPage> {
               } else if (message == 'paymentCancelled') {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Payment cancelled. Your booking is reserved.'),
+                    content: Text(
+                      'Payment cancelled. Your booking is reserved.',
+                    ),
                   ),
                 );
               } else {
@@ -116,9 +133,12 @@ class _BookingSummaryPageState extends State<BookingSummaryPage> {
                           ? NetworkImage(doctor.avatarUrl!)
                           : null,
                       child: doctor.avatarUrl == null
-                          ? Text(doctor.fullName[0].toUpperCase(),
-                              style: AppTypography.caption
-                                  .copyWith(color: AppColors.white))
+                          ? Text(
+                              doctor.fullName[0].toUpperCase(),
+                              style: AppTypography.caption.copyWith(
+                                color: AppColors.white,
+                              ),
+                            )
                           : null,
                     ),
                     title: 'Dr. ${doctor.fullName}',
@@ -129,8 +149,10 @@ class _BookingSummaryPageState extends State<BookingSummaryPage> {
                 _SummaryCard(
                   title: 'Center',
                   child: _InfoRow(
-                    leading: const Icon(Icons.local_hospital_outlined,
-                        color: AppColors.primary),
+                    leading: const Icon(
+                      Icons.local_hospital_outlined,
+                      color: AppColors.primary,
+                    ),
                     title: center.name,
                     subtitle: center.address,
                   ),
@@ -139,8 +161,10 @@ class _BookingSummaryPageState extends State<BookingSummaryPage> {
                 _SummaryCard(
                   title: 'Date & Time',
                   child: _InfoRow(
-                    leading: const Icon(Icons.access_time_rounded,
-                        color: AppColors.primary),
+                    leading: const Icon(
+                      Icons.access_time_rounded,
+                      color: AppColors.primary,
+                    ),
                     title: DateFormat('EEEE, MMMM d, yyyy').format(date),
                     subtitle: slot.formattedTime,
                   ),
@@ -154,7 +178,8 @@ class _BookingSummaryPageState extends State<BookingSummaryPage> {
                   maxLength: 500,
                   onChanged: (_) => setState(() {}),
                   decoration: _inputDecoration(
-                      'Describe the reason for your visit…'),
+                    'Describe the reason for your visit…',
+                  ),
                 ),
                 SizedBox(height: 12.h),
                 Text('Symptoms (optional)', style: AppTypography.subtitle),
@@ -163,21 +188,20 @@ class _BookingSummaryPageState extends State<BookingSummaryPage> {
                   controller: _symptomsController,
                   maxLines: 4,
                   maxLength: 1000,
-                  decoration:
-                      _inputDecoration('Describe your symptoms…'),
+                  decoration: _inputDecoration('Describe your symptoms…'),
                 ),
                 SizedBox(height: 20.h),
                 _PriceBreakdown(
                   consultationFee: doctor.consultationFee,
+                  vatFee: state.vatFee,
                   serviceFee: state.serviceFee,
                   total: state.totalAmount,
                 ),
                 SizedBox(height: 16.h),
                 _TermsCheckbox(
                   agreed: state.agreedToTerms,
-                  onChanged: () => context
-                      .read<BookingFlowBloc>()
-                      .add(const TermsToggled()),
+                  onChanged: () =>
+                      context.read<BookingFlowBloc>().add(const TermsToggled()),
                 ),
                 SizedBox(height: 80.h),
               ],
@@ -189,15 +213,17 @@ class _BookingSummaryPageState extends State<BookingSummaryPage> {
               child: ElevatedButton(
                 onPressed: _canConfirm(state)
                     ? () {
-                        context.read<BookingFlowBloc>().add(ReasonEntered(
-                              reason: _reasonController.text,
-                              symptoms: _symptomsController.text.isEmpty
-                                  ? null
-                                  : _symptomsController.text,
-                            ));
-                        context
-                            .read<BookingFlowBloc>()
-                            .add(const BookingConfirmed());
+                        context.read<BookingFlowBloc>().add(
+                          ReasonEntered(
+                            reason: _reasonController.text,
+                            symptoms: _symptomsController.text.isEmpty
+                                ? null
+                                : _symptomsController.text,
+                          ),
+                        );
+                        context.read<BookingFlowBloc>().add(
+                          const BookingConfirmed(),
+                        );
                       }
                     : null,
                 style: ElevatedButton.styleFrom(
@@ -213,12 +239,15 @@ class _BookingSummaryPageState extends State<BookingSummaryPage> {
                         width: 24,
                         height: 24,
                         child: CircularProgressIndicator(
-                            color: Colors.white, strokeWidth: 2),
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
                       )
                     : Text(
                         'Confirm & Pay',
-                        style: AppTypography.subtitle
-                            .copyWith(color: AppColors.white),
+                        style: AppTypography.subtitle.copyWith(
+                          color: AppColors.white,
+                        ),
                       ),
               ),
             ),
@@ -234,19 +263,19 @@ class _BookingSummaryPageState extends State<BookingSummaryPage> {
       !state.isProcessing;
 
   InputDecoration _inputDecoration(String hint) => InputDecoration(
-        hintText: hint,
-        filled: true,
-        fillColor: AppColors.white,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          borderSide: const BorderSide(color: AppColors.neutral300),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          borderSide: const BorderSide(color: AppColors.neutral300),
-        ),
-        contentPadding: EdgeInsets.all(12.r),
-      );
+    hintText: hint,
+    filled: true,
+    fillColor: AppColors.white,
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      borderSide: const BorderSide(color: AppColors.neutral300),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      borderSide: const BorderSide(color: AppColors.neutral300),
+    ),
+    contentPadding: EdgeInsets.all(12.r),
+  );
 }
 
 class _SummaryCard extends StatelessWidget {
@@ -268,8 +297,10 @@ class _SummaryCard extends StatelessWidget {
         children: [
           Text(
             title.toUpperCase(),
-            style: AppTypography.overline
-                .copyWith(color: AppColors.neutral500, letterSpacing: 1),
+            style: AppTypography.overline.copyWith(
+              color: AppColors.neutral500,
+              letterSpacing: 1,
+            ),
           ),
           SizedBox(height: 10.h),
           child,
@@ -299,9 +330,10 @@ class _InfoRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title,
-                  style: AppTypography.body
-                      .copyWith(fontWeight: FontWeight.w600)),
+              Text(
+                title,
+                style: AppTypography.body.copyWith(fontWeight: FontWeight.w600),
+              ),
               Text(subtitle, style: AppTypography.caption),
             ],
           ),
@@ -314,10 +346,12 @@ class _InfoRow extends StatelessWidget {
 class _PriceBreakdown extends StatelessWidget {
   const _PriceBreakdown({
     required this.consultationFee,
+    required this.vatFee,
     required this.serviceFee,
     required this.total,
   });
   final double consultationFee;
+  final double vatFee;
   final double serviceFee;
   final double total;
 
@@ -333,12 +367,19 @@ class _PriceBreakdown extends StatelessWidget {
       child: Column(
         children: [
           _PriceRow(
-              label: 'Consultation fee',
-              amount: 'ETB ${consultationFee.toStringAsFixed(0)}'),
+            label: 'Consultation fee',
+            amount: 'ETB ${consultationFee.toStringAsFixed(0)}',
+          ),
           SizedBox(height: 8.h),
           _PriceRow(
-              label: 'Service fee (2%)',
-              amount: 'ETB ${serviceFee.toStringAsFixed(2)}'),
+            label: 'VAT (15%)',
+            amount: 'ETB ${vatFee.toStringAsFixed(2)}',
+          ),
+          SizedBox(height: 8.h),
+          _PriceRow(
+            label: 'Service fee (2%)',
+            amount: 'ETB ${serviceFee.toStringAsFixed(2)}',
+          ),
           Divider(height: 16.h),
           _PriceRow(
             label: 'Total',
@@ -352,8 +393,11 @@ class _PriceBreakdown extends StatelessWidget {
 }
 
 class _PriceRow extends StatelessWidget {
-  const _PriceRow(
-      {required this.label, required this.amount, this.isBold = false});
+  const _PriceRow({
+    required this.label,
+    required this.amount,
+    this.isBold = false,
+  });
   final String label;
   final String amount;
   final bool isBold;

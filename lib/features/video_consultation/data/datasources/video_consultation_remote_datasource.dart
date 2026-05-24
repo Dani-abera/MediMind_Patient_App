@@ -18,12 +18,11 @@ class VideoConsultationRemoteDataSourceImpl
       String consultationId) async {
     try {
       final response =
-          await _dio.get('/api/v1/video-consultations/$consultationId');
+          await _dio.get('/video-consultations/$consultationId');
       return VideoConsultationModel.fromJson(
-          response.data['data'] as Map<String, dynamic>);
+          response.data as Map<String, dynamic>);
     } on DioException catch (e) {
-      throw ServerException(
-          message: e.response?.data?['message'] ?? e.message ?? 'Server error');
+      throw ServerException(message: _extractMessage(e));
     }
   }
 
@@ -31,14 +30,12 @@ class VideoConsultationRemoteDataSourceImpl
   Future<String> joinConsultation(String consultationId) async {
     try {
       final response =
-          await _dio.post('/api/v1/video-consultations/$consultationId/join');
-      final data = response.data['data'] as Map<String, dynamic>;
-      // Returns the caller's own SignalR connectionId from ConsultationJoinDto
+          await _dio.post('/video-consultations/$consultationId/join');
+      final data = response.data as Map<String, dynamic>;
       final yourInfo = data['yourConnectionInfo'] as Map<String, dynamic>? ?? {};
       return yourInfo['connectionId'] as String? ?? '';
     } on DioException catch (e) {
-      throw ServerException(
-          message: e.response?.data?['message'] ?? e.message ?? 'Server error');
+      throw ServerException(message: _extractMessage(e));
     }
   }
 
@@ -47,12 +44,17 @@ class VideoConsultationRemoteDataSourceImpl
       String appointmentId) async {
     try {
       final response = await _dio
-          .get('/api/v1/video-consultations/appointment/$appointmentId');
+          .get('/video-consultations/appointment/$appointmentId');
       return VideoConsultationModel.fromJson(
-          response.data['data'] as Map<String, dynamic>);
+          response.data as Map<String, dynamic>);
     } on DioException catch (e) {
-      throw ServerException(
-          message: e.response?.data?['message'] ?? e.message ?? 'Server error');
+      throw ServerException(message: _extractMessage(e));
     }
+  }
+
+  String _extractMessage(DioException e) {
+    final data = e.response?.data;
+    if (data is Map<String, dynamic>) return data['message'] as String? ?? e.message ?? 'Server error';
+    return e.message ?? 'Server error';
   }
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -18,17 +19,18 @@ class VideoCallPage extends StatefulWidget {
 }
 
 class _VideoCallPageState extends State<VideoCallPage> {
-  bool _controlsVisible = true;
+  bool _controlsVisible = false;
+  Timer? _hideTimer;
 
   @override
   void initState() {
     super.initState();
     context.read<VideoCallBloc>().add(VideoCallStarted(widget.consultationId));
-    _scheduleControlsHide();
   }
 
   void _scheduleControlsHide() {
-    Future.delayed(const Duration(seconds: 3), () {
+    _hideTimer?.cancel();
+    _hideTimer = Timer(const Duration(seconds: 4), () {
       if (mounted) setState(() => _controlsVisible = false);
     });
   }
@@ -36,6 +38,12 @@ class _VideoCallPageState extends State<VideoCallPage> {
   void _showControls() {
     setState(() => _controlsVisible = true);
     _scheduleControlsHide();
+  }
+
+  @override
+  void dispose() {
+    _hideTimer?.cancel();
+    super.dispose();
   }
 
   Future<bool> _onWillPop(BuildContext context) async {
@@ -62,6 +70,9 @@ class _VideoCallPageState extends State<VideoCallPage> {
   Widget build(BuildContext context) {
     return BlocConsumer<VideoCallBloc, VideoCallState>(
       listener: (context, state) {
+        if (state is VideoCallActive) {
+          _showControls();
+        }
         if (state is VideoCallEnded) {
           context.pop();
         }
@@ -192,13 +203,13 @@ class _VideoCallPageState extends State<VideoCallPage> {
               ),
 
             // Top bar
-            AnimatedOpacity(
-              opacity: _controlsVisible ? 1.0 : 0.0,
-              duration: const Duration(milliseconds: 300),
-              child: Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: AnimatedOpacity(
+                opacity: _controlsVisible ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 300),
                 child: Container(
                   padding: EdgeInsets.fromLTRB(
                       16.w,
@@ -291,13 +302,13 @@ class _VideoCallPageState extends State<VideoCallPage> {
             ),
 
             // Bottom controls
-            AnimatedOpacity(
-              opacity: _controlsVisible ? 1.0 : 0.0,
-              duration: const Duration(milliseconds: 300),
-              child: Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: AnimatedOpacity(
+                opacity: _controlsVisible ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 300),
                 child: Container(
                   padding: EdgeInsets.fromLTRB(
                       16.w,

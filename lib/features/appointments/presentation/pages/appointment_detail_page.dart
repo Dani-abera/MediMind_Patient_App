@@ -1,14 +1,18 @@
+import 'package:chapasdk/chapasdk.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+import '../../../../core/constants/api_constants.dart';
 import '../../../../core/di/service_locator.dart';
 import '../../../../core/routing/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/feedback/app_shimmer.dart';
+import '../../../payments/domain/usecases/initiate_payment_usecase.dart';
 import '../../../video_consultation/domain/repositories/video_consultation_repository.dart';
 import '../../domain/entities/appointment_detail.dart';
 import '../../domain/usecases/cancel_appointment_usecase.dart';
@@ -19,8 +23,7 @@ class AppointmentDetailPage extends StatefulWidget {
   final String appointmentId;
 
   @override
-  State<AppointmentDetailPage> createState() =>
-      _AppointmentDetailPageState();
+  State<AppointmentDetailPage> createState() => _AppointmentDetailPageState();
 }
 
 class _AppointmentDetailPageState extends State<AppointmentDetailPage> {
@@ -29,6 +32,7 @@ class _AppointmentDetailPageState extends State<AppointmentDetailPage> {
   bool _loading = true;
   bool _cancelling = false;
   bool _joiningCall = false;
+  bool _paying = false;
 
   @override
   void initState() {
@@ -39,15 +43,16 @@ class _AppointmentDetailPageState extends State<AppointmentDetailPage> {
   Future<void> _joinVideoCall(AppointmentDetail detail) async {
     // Fast path: consultationId already in appointment DTO
     if (detail.videoConsultationId != null) {
-      context.pushNamed(RouteNames.videoCall,
-          pathParameters: {'id': detail.videoConsultationId!});
+      context.pushNamed(
+        RouteNames.videoCall,
+        pathParameters: {'id': detail.videoConsultationId!},
+      );
       return;
     }
     // Slow path: look up consultation by appointmentId
     setState(() => _joiningCall = true);
     final repo = sl<VideoConsultationRepository>();
-    final result =
-        await repo.getConsultationByAppointmentId(detail.id);
+    final result = await repo.getConsultationByAppointmentId(detail.id);
     if (!mounted) return;
     setState(() => _joiningCall = false);
     result.fold(
@@ -57,14 +62,77 @@ class _AppointmentDetailPageState extends State<AppointmentDetailPage> {
           backgroundColor: AppColors.warning,
         ),
       ),
-      (consultation) => context.pushNamed(RouteNames.videoCall,
-          pathParameters: {'id': consultation.id}),
+      (consultation) => context.pushNamed(
+        RouteNames.videoCall,
+        pathParameters: {'id': consultation.id},
+      ),
+    );
+  }
+
+  Future<void> _payNow(AppointmentDetail detail) async {
+    setState(() => _paying = true);
+    final result = await sl<InitiatePaymentUsecase>()(detail.id);
+    if (!mounted) return;
+    result.fold(
+      (failure) {
+        setState(() => _paying = false);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(failure.message)));
+      },
+      (payment) {
+        setState(() => _paying = false);
+        Chapa.paymentParameters(
+          context: context,
+          publicKey: ApiConstants.chapaPublicKey,
+          currency: 'ETB',
+          //currency: payment.currency,
+          amount: payment.amount.toStringAsFixed(2),
+          email: 'danielabera285@gmail.com',
+          //email: payment.patientEmail ?? '',
+          phone: payment.patientPhone ?? '',
+          firstName: payment.patientFirstName ?? '',
+          lastName: payment.patientLastName ?? '',
+          txRef: payment.txRef ?? '',
+          title: 'Appointment Payment',
+          desc: 'Consultation with Dr. ${detail.doctorName}',
+          nativeCheckout: true,
+          namedRouteFallBack: '/home',
+          showPaymentMethodsOnGridView: true,
+          availablePaymentMethods: ['mpesa', 'cbebirr', 'telebirr', 'ebirr'],
+          onPaymentFinished: (message, reference, amount) {
+            if (message == 'paymentSuccessful') {
+              _load();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Payment successful!'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+
+              Navigator.pop(context);
+            } else if (message == 'paymentCancelled') {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Payment cancelled.')),
+              );
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Payment failed. Please try again.'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          },
+        );
+      },
     );
   }
 
   Future<void> _load() async {
-    final result =
-        await sl<GetAppointmentDetailUsecase>()(widget.appointmentId);
+    final result = await sl<GetAppointmentDetailUsecase>()(
+      widget.appointmentId,
+    );
     if (!mounted) return;
     result.fold(
       (f) => setState(() {
@@ -105,8 +173,10 @@ class _AppointmentDetailPageState extends State<AppointmentDetailPage> {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: Text('Cancel Appointment',
-                style: TextStyle(color: AppColors.danger)),
+            child: Text(
+              'Cancel Appointment',
+              style: TextStyle(color: AppColors.danger),
+            ),
           ),
         ],
       ),
@@ -114,8 +184,7 @@ class _AppointmentDetailPageState extends State<AppointmentDetailPage> {
     if (confirmed != true || !mounted) return;
 
     setState(() => _cancelling = true);
-    final result =
-        await sl<CancelAppointmentUsecase>()(widget.appointmentId);
+    final result = await sl<CancelAppointmentUsecase>()(widget.appointmentId);
     if (!mounted) return;
     result.fold(
       (f) => setState(() => _cancelling = false),
@@ -192,6 +261,14 @@ class _AppointmentDetailPageState extends State<AppointmentDetailPage> {
                 child: Text(d.reasonForVisit!, style: AppTypography.body),
               ),
             ],
+            if (d.totalAmount > 0 || d.paymentStatus != null) ...[
+              SizedBox(height: 12.h),
+              _PaymentCard(
+                detail: d,
+                paying: _paying,
+                onPayNow: () => _payNow(d),
+              ),
+            ],
             SizedBox(height: 24.h),
             _ActionButtons(
               detail: d,
@@ -208,12 +285,12 @@ class _AppointmentDetailPageState extends State<AppointmentDetailPage> {
   }
 
   Color _statusColor(AppointmentStatus status) => switch (status) {
-        AppointmentStatus.pending => AppColors.warning,
-        AppointmentStatus.confirmed => AppColors.success,
-        AppointmentStatus.completed => AppColors.neutral500,
-        AppointmentStatus.cancelled => AppColors.danger,
-        AppointmentStatus.noShow => AppColors.neutral500,
-      };
+    AppointmentStatus.pending => AppColors.warning,
+    AppointmentStatus.confirmed => AppColors.success,
+    AppointmentStatus.completed => AppColors.neutral500,
+    AppointmentStatus.cancelled => AppColors.danger,
+    AppointmentStatus.noShow => AppColors.neutral500,
+  };
 }
 
 class _StatusBanner extends StatelessWidget {
@@ -267,8 +344,10 @@ class _DetailCard extends StatelessWidget {
         children: [
           Text(
             title.toUpperCase(),
-            style: AppTypography.overline
-                .copyWith(color: AppColors.neutral500, letterSpacing: 1),
+            style: AppTypography.overline.copyWith(
+              color: AppColors.neutral500,
+              letterSpacing: 1,
+            ),
           ),
           SizedBox(height: 10.h),
           child,
@@ -293,20 +372,21 @@ class _DoctorInfo extends StatelessWidget {
               ? NetworkImage(detail.doctorAvatarUrl!)
               : null,
           child: detail.doctorAvatarUrl == null
-              ? Text(detail.doctorName[0].toUpperCase(),
-                  style:
-                      AppTypography.body.copyWith(color: AppColors.white))
+              ? Text(
+                  detail.doctorName[0].toUpperCase(),
+                  style: AppTypography.body.copyWith(color: AppColors.white),
+                )
               : null,
         ),
         SizedBox(width: 12.w),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Dr. ${detail.doctorName}',
-                style: AppTypography.body
-                    .copyWith(fontWeight: FontWeight.w600)),
-            Text(detail.doctorSpecialization,
-                style: AppTypography.caption),
+            Text(
+              'Dr. ${detail.doctorName}',
+              style: AppTypography.body.copyWith(fontWeight: FontWeight.w600),
+            ),
+            Text(detail.doctorSpecialization, style: AppTypography.caption),
           ],
         ),
       ],
@@ -323,30 +403,32 @@ class _CenterInfo extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(detail.centerName,
-            style:
-                AppTypography.body.copyWith(fontWeight: FontWeight.w600)),
+        Text(
+          detail.centerName,
+          style: AppTypography.body.copyWith(fontWeight: FontWeight.w600),
+        ),
         SizedBox(height: 4.h),
         Text(detail.centerAddress, style: AppTypography.caption),
         SizedBox(height: 8.h),
         Row(
           children: [
             TextButton.icon(
-              onPressed: () => launchUrl(
-                  Uri(scheme: 'tel', path: detail.centerPhone)),
+              onPressed: () =>
+                  launchUrl(Uri(scheme: 'tel', path: detail.centerPhone)),
               icon: const Icon(Icons.phone_outlined, size: 16),
               label: const Text('Call'),
-              style: TextButton.styleFrom(
-                  foregroundColor: AppColors.primary),
+              style: TextButton.styleFrom(foregroundColor: AppColors.primary),
             ),
             if (detail.centerLatitude != null)
               TextButton.icon(
-                onPressed: () => launchUrl(Uri.parse(
-                    'https://maps.google.com/?q=${detail.centerLatitude},${detail.centerLongitude}')),
+                onPressed: () => launchUrl(
+                  Uri.parse(
+                    'https://maps.google.com/?q=${detail.centerLatitude},${detail.centerLongitude}',
+                  ),
+                ),
                 icon: const Icon(Icons.directions_outlined, size: 16),
                 label: const Text('Directions'),
-                style: TextButton.styleFrom(
-                    foregroundColor: AppColors.primary),
+                style: TextButton.styleFrom(foregroundColor: AppColors.primary),
               ),
           ],
         ),
@@ -366,18 +448,17 @@ class _DateTimeInfo extends StatelessWidget {
     final countdown = diff.isNegative
         ? null
         : diff.inDays > 0
-            ? 'In ${diff.inDays} day${diff.inDays == 1 ? '' : 's'}'
-            : diff.inHours > 0
-                ? 'In ${diff.inHours} hour${diff.inHours == 1 ? '' : 's'}'
-                : 'Soon';
+        ? 'In ${diff.inDays} day${diff.inDays == 1 ? '' : 's'}'
+        : diff.inHours > 0
+        ? 'In ${diff.inHours} hour${diff.inHours == 1 ? '' : 's'}'
+        : 'Soon';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           DateFormat('EEEE, MMMM d, yyyy').format(detail.appointmentTime),
-          style:
-              AppTypography.body.copyWith(fontWeight: FontWeight.w600),
+          style: AppTypography.body.copyWith(fontWeight: FontWeight.w600),
         ),
         Text(
           DateFormat('h:mm a').format(detail.appointmentTime),
@@ -385,9 +466,10 @@ class _DateTimeInfo extends StatelessWidget {
         ),
         if (countdown != null) ...[
           SizedBox(height: 4.h),
-          Text(countdown,
-              style: AppTypography.caption
-                  .copyWith(color: AppColors.success)),
+          Text(
+            countdown,
+            style: AppTypography.caption.copyWith(color: AppColors.success),
+          ),
         ],
       ],
     );
@@ -414,8 +496,11 @@ class _QueueCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(Icons.people_outline_rounded,
-                color: AppColors.info, size: 24.r),
+            Icon(
+              Icons.people_outline_rounded,
+              color: AppColors.info,
+              size: 24.r,
+            ),
             SizedBox(width: 12.w),
             Expanded(
               child: Column(
@@ -423,8 +508,9 @@ class _QueueCard extends StatelessWidget {
                 children: [
                   Text(
                     'You are #${detail.queueNumber} in queue',
-                    style: AppTypography.body
-                        .copyWith(fontWeight: FontWeight.w600),
+                    style: AppTypography.body.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   if (detail.estimatedWaitMinutes != null)
                     Text(
@@ -434,8 +520,11 @@ class _QueueCard extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(Icons.chevron_right_rounded,
-                color: AppColors.info, size: 20.r),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.info,
+              size: 20.r,
+            ),
           ],
         ),
       ),
@@ -480,8 +569,7 @@ class _ActionButtons extends StatelessWidget {
                   )
                 : Text(
                     'Cancel Appointment',
-                    style: AppTypography.body
-                        .copyWith(color: AppColors.danger),
+                    style: AppTypography.body.copyWith(color: AppColors.danger),
                   ),
           ),
         if (detail.status == AppointmentStatus.completed) ...[
@@ -492,7 +580,8 @@ class _ActionButtons extends StatelessWidget {
               backgroundColor: AppColors.primary,
               minimumSize: Size(double.infinity, 48.h),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.lg)),
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+              ),
             ),
             child: Text(
               'Leave a Review',
@@ -500,10 +589,19 @@ class _ActionButtons extends StatelessWidget {
             ),
           ),
         ],
-        if (detail.type == AppointmentType.video &&
-            detail.isToday &&
+        if ((detail.videoConsultationId != null ||
+                detail.canInitiateVideoConsultation) &&
             detail.isUpcoming) ...[
           SizedBox(height: 12.h),
+          if (detail.videoConsultationStatus == 'InProgress')
+            Padding(
+              padding: EdgeInsets.only(bottom: 6.h),
+              child: Text(
+                'Call is live — tap to join',
+                textAlign: TextAlign.center,
+                style: AppTypography.caption.copyWith(color: AppColors.success),
+              ),
+            ),
           ElevatedButton.icon(
             onPressed: joiningCall ? null : onJoinCall,
             icon: joiningCall
@@ -511,7 +609,9 @@ class _ActionButtons extends StatelessWidget {
                     width: 18.w,
                     height: 18.h,
                     child: const CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.white),
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
                   )
                 : const Icon(Icons.videocam_outlined, color: Colors.white),
             label: Text(
@@ -522,13 +622,147 @@ class _ActionButtons extends StatelessWidget {
               backgroundColor: AppColors.info,
               minimumSize: Size(double.infinity, 48.h),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.lg)),
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+              ),
             ),
           ),
         ],
       ],
     );
   }
+}
+
+class _PaymentCard extends StatelessWidget {
+  const _PaymentCard({
+    required this.detail,
+    required this.paying,
+    required this.onPayNow,
+  });
+
+  final AppointmentDetail detail;
+  final bool paying;
+  final VoidCallback onPayNow;
+
+  @override
+  Widget build(BuildContext context) {
+    final status = detail.paymentStatus;
+    final (statusColor, statusLabel) = switch (status) {
+      PaymentStatus.completed => (AppColors.success, 'Paid'),
+      PaymentStatus.failed => (AppColors.danger, 'Failed'),
+      PaymentStatus.processing => (AppColors.info, 'Processing'),
+      PaymentStatus.refunded => (AppColors.neutral500, 'Refunded'),
+      _ => (AppColors.warning, 'Pending'),
+    };
+
+    return Container(
+      padding: EdgeInsets.all(16.r),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: AppColors.neutral300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'PAYMENT',
+            style: AppTypography.overline.copyWith(
+              color: AppColors.neutral500,
+              letterSpacing: 1,
+            ),
+          ),
+          SizedBox(height: 10.h),
+          _feeRow('Consultation Fee', detail.consultationFee),
+          _feeRow('Service Fee', detail.serviceFee),
+          Divider(height: 16.h, color: AppColors.neutral300),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Total',
+                style: AppTypography.body.copyWith(fontWeight: FontWeight.w700),
+              ),
+              Text(
+                'ETB ${detail.totalAmount.toStringAsFixed(2)}',
+                style: AppTypography.body.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 10.h),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Status', style: AppTypography.caption),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20.r),
+                ),
+                child: Text(
+                  statusLabel,
+                  style: AppTypography.caption.copyWith(
+                    color: statusColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (status == PaymentStatus.pending ||
+              status == PaymentStatus.failed ||
+              status == null) ...[
+            SizedBox(height: 12.h),
+            SizedBox(
+              width: double.infinity,
+              height: 44.h,
+              child: ElevatedButton(
+                onPressed: paying ? null : onPayNow,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                  ),
+                ),
+                child: paying
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Text(
+                        'Pay Now',
+                        style: AppTypography.body.copyWith(
+                          color: AppColors.white,
+                        ),
+                      ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _feeRow(String label, double amount) => Padding(
+    padding: EdgeInsets.symmetric(vertical: 3.h),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: AppTypography.caption),
+        Text(
+          'ETB ${amount.toStringAsFixed(2)}',
+          style: AppTypography.caption.copyWith(color: AppColors.neutral700),
+        ),
+      ],
+    ),
+  );
 }
 
 class _DetailShimmer extends StatelessWidget {

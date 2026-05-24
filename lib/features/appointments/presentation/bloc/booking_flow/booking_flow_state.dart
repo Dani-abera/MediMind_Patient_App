@@ -28,6 +28,7 @@ class BookingFlowState extends Equatable {
     this.paymentId,
     this.checkoutUrl,
     this.txRef,
+    this.serverTotalAmount,
     this.patientEmail,
     this.patientPhone,
     this.patientFirstName,
@@ -48,6 +49,7 @@ class BookingFlowState extends Equatable {
   final String? paymentId;
   final String? checkoutUrl;
   final String? txRef;
+  final double? serverTotalAmount;
   final String? patientEmail;
   final String? patientPhone;
   final String? patientFirstName;
@@ -55,8 +57,10 @@ class BookingFlowState extends Equatable {
   final String? error;
   final BookingStep step;
 
+  double get vatFee => (selectedDoctor?.consultationFee ?? 0) * 0.15;
   double get serviceFee => (selectedDoctor?.consultationFee ?? 0) * 0.02;
-  double get totalAmount => (selectedDoctor?.consultationFee ?? 0) + serviceFee;
+  double get totalAmount =>
+      (selectedDoctor?.consultationFee ?? 0) + vatFee + serviceFee;
 
   BookingFlowState copyWith({
     Center? selectedCenter,
@@ -71,6 +75,7 @@ class BookingFlowState extends Equatable {
     String? paymentId,
     String? checkoutUrl,
     String? txRef,
+    double? serverTotalAmount,
     String? patientEmail,
     String? patientPhone,
     String? patientFirstName,
@@ -90,6 +95,7 @@ class BookingFlowState extends Equatable {
     paymentId: paymentId ?? this.paymentId,
     checkoutUrl: checkoutUrl ?? this.checkoutUrl,
     txRef: txRef ?? this.txRef,
+    serverTotalAmount: serverTotalAmount ?? this.serverTotalAmount,
     patientEmail: patientEmail ?? this.patientEmail,
     patientPhone: patientPhone ?? this.patientPhone,
     patientFirstName: patientFirstName ?? this.patientFirstName,
@@ -112,6 +118,7 @@ class BookingFlowState extends Equatable {
     paymentId,
     checkoutUrl,
     txRef,
+    serverTotalAmount,
     patientEmail,
     patientPhone,
     patientFirstName,

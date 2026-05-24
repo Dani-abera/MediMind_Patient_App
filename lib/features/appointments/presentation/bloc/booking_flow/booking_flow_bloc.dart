@@ -103,6 +103,7 @@ class BookingFlowBloc extends Bloc<BookingFlowEvent, BookingFlowState> {
             createdAppointmentId: appointment.id,
             paymentId: payment.id,
             txRef: payment.txRef,
+            serverTotalAmount: payment.amount,
             patientEmail: payment.patientEmail,
             patientPhone: payment.patientPhone,
             patientFirstName: payment.patientFirstName,
