@@ -181,6 +181,7 @@ class _AppointmentCard extends StatelessWidget {
   Color get _statusColor => switch (appointment.status) {
         AppointmentStatus.pending => AppColors.warning,
         AppointmentStatus.confirmed => AppColors.success,
+        AppointmentStatus.inProgress => AppColors.info,
         AppointmentStatus.completed => AppColors.neutral500,
         AppointmentStatus.cancelled => AppColors.danger,
         AppointmentStatus.noShow => AppColors.neutral500,

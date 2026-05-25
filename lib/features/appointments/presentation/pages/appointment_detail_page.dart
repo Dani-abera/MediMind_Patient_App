@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/di/service_locator.dart';
+import '../../../payments/domain/usecases/sync_payment_usecase.dart';
 import '../../../../core/routing/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
@@ -69,6 +70,13 @@ class _AppointmentDetailPageState extends State<AppointmentDetailPage> {
     );
   }
 
+  void _openChat(String consultationId) {
+    context.pushNamed(
+      RouteNames.appointmentChat,
+      pathParameters: {'id': consultationId},
+    );
+  }
+
   Future<void> _payNow(AppointmentDetail detail) async {
     setState(() => _paying = true);
     final result = await sl<InitiatePaymentUsecase>()(detail.id);
@@ -97,20 +105,12 @@ class _AppointmentDetailPageState extends State<AppointmentDetailPage> {
           title: 'Appointment Payment',
           desc: 'Consultation with Dr. ${detail.doctorName}',
           nativeCheckout: true,
-          namedRouteFallBack: '/home',
+          namedRouteFallBack: '',
           showPaymentMethodsOnGridView: true,
           availablePaymentMethods: ['mpesa', 'cbebirr', 'telebirr', 'ebirr'],
           onPaymentFinished: (message, reference, amount) {
             if (message == 'paymentSuccessful') {
-              _load();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Payment successful!'),
-                  backgroundColor: Colors.green,
-                ),
-              );
-
-              Navigator.pop(context);
+              _handlePaymentSuccess(payment.id);
             } else if (message == 'paymentCancelled') {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Payment cancelled.')),
@@ -127,6 +127,19 @@ class _AppointmentDetailPageState extends State<AppointmentDetailPage> {
         );
       },
     );
+  }
+
+  Future<void> _handlePaymentSuccess(String paymentId) async {
+    await sl<SyncPaymentUsecase>()(paymentId);
+    await _load();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Payment successful!'),
+        backgroundColor: Colors.green,
+      ),
+    );
+    Navigator.pop(context);
   }
 
   Future<void> _load() async {
@@ -276,6 +289,9 @@ class _AppointmentDetailPageState extends State<AppointmentDetailPage> {
               onCancel: _cancel,
               joiningCall: _joiningCall,
               onJoinCall: () => _joinVideoCall(d),
+              onOpenChat: d.canChat && d.videoConsultationId != null
+                  ? () => _openChat(d.videoConsultationId!)
+                  : null,
             ),
             SizedBox(height: 32.h),
           ],
@@ -287,6 +303,7 @@ class _AppointmentDetailPageState extends State<AppointmentDetailPage> {
   Color _statusColor(AppointmentStatus status) => switch (status) {
     AppointmentStatus.pending => AppColors.warning,
     AppointmentStatus.confirmed => AppColors.success,
+    AppointmentStatus.inProgress => AppColors.info,
     AppointmentStatus.completed => AppColors.neutral500,
     AppointmentStatus.cancelled => AppColors.danger,
     AppointmentStatus.noShow => AppColors.neutral500,
@@ -539,6 +556,7 @@ class _ActionButtons extends StatelessWidget {
     required this.onCancel,
     this.joiningCall = false,
     this.onJoinCall,
+    this.onOpenChat,
   });
 
   final AppointmentDetail detail;
@@ -546,6 +564,7 @@ class _ActionButtons extends StatelessWidget {
   final VoidCallback onCancel;
   final bool joiningCall;
   final VoidCallback? onJoinCall;
+  final VoidCallback? onOpenChat;
 
   @override
   Widget build(BuildContext context) {
@@ -589,9 +608,8 @@ class _ActionButtons extends StatelessWidget {
             ),
           ),
         ],
-        if ((detail.videoConsultationId != null ||
-                detail.canInitiateVideoConsultation) &&
-            detail.isUpcoming) ...[
+        if (detail.canInitiateVideoConsultation ||
+            (detail.videoConsultationId != null && detail.isUpcoming)) ...[
           SizedBox(height: 12.h),
           if (detail.videoConsultationStatus == 'InProgress')
             Padding(
@@ -615,12 +633,34 @@ class _ActionButtons extends StatelessWidget {
                   )
                 : const Icon(Icons.videocam_outlined, color: Colors.white),
             label: Text(
-              joiningCall ? 'Connecting...' : 'Join Video Call',
+              joiningCall
+                  ? 'Connecting...'
+                  : detail.videoConsultationStatus == 'InProgress'
+                      ? 'Join Video Call'
+                      : 'Join Video Call',
               style: AppTypography.body.copyWith(color: AppColors.white),
             ),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.info,
               minimumSize: Size(double.infinity, 48.h),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+              ),
+            ),
+          ),
+        ],
+        if (onOpenChat != null) ...[
+          SizedBox(height: 12.h),
+          OutlinedButton.icon(
+            onPressed: onOpenChat,
+            icon: const Icon(Icons.chat_bubble_outline),
+            label: Text(
+              'Chat with Doctor',
+              style: AppTypography.body.copyWith(color: AppColors.primary),
+            ),
+            style: OutlinedButton.styleFrom(
+              minimumSize: Size(double.infinity, 48.h),
+              side: BorderSide(color: AppColors.primary),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(AppRadius.lg),
               ),

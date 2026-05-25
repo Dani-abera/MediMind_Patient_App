@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 
-enum AppointmentStatus { pending, confirmed, completed, cancelled, noShow }
+enum AppointmentStatus { pending, confirmed, inProgress, completed, cancelled, noShow }
 
 enum AppointmentType { inPerson, video, homeVisit }
 
@@ -38,6 +38,7 @@ class AppointmentDetail extends Equatable {
     this.centerLongitude,
     this.videoConsultationId,
     this.canInitiateVideoConsultation = false,
+    this.canChat = false,
     this.videoConsultationStatus,
   });
 
@@ -71,11 +72,13 @@ class AppointmentDetail extends Equatable {
   final double? centerLongitude;
   final String? videoConsultationId;
   final bool canInitiateVideoConsultation;
+  final bool canChat;
   final String? videoConsultationStatus;
 
   bool get isUpcoming =>
       status == AppointmentStatus.pending ||
-      status == AppointmentStatus.confirmed;
+      status == AppointmentStatus.confirmed ||
+      status == AppointmentStatus.inProgress;
 
   bool get isToday {
     final now = DateTime.now();
@@ -87,6 +90,7 @@ class AppointmentDetail extends Equatable {
   String get statusLabel => switch (status) {
         AppointmentStatus.pending => 'Pending',
         AppointmentStatus.confirmed => 'Confirmed',
+        AppointmentStatus.inProgress => 'In Progress',
         AppointmentStatus.completed => 'Completed',
         AppointmentStatus.cancelled => 'Cancelled',
         AppointmentStatus.noShow => 'No Show',
@@ -95,6 +99,6 @@ class AppointmentDetail extends Equatable {
   @override
   List<Object?> get props => [
         id, doctorId, centerId, appointmentTime, status, paymentStatus,
-        videoConsultationId, canInitiateVideoConsultation, videoConsultationStatus,
+        videoConsultationId, canInitiateVideoConsultation, canChat, videoConsultationStatus,
       ];
 }

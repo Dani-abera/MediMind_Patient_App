@@ -10,6 +10,7 @@ import 'domain/usecases/get_payment_history_usecase.dart';
 import 'domain/usecases/get_payment_status_usecase.dart';
 import 'domain/usecases/get_receipt_url_usecase.dart';
 import 'domain/usecases/initiate_payment_usecase.dart';
+import 'domain/usecases/sync_payment_usecase.dart';
 import 'presentation/bloc/payments_history_bloc.dart';
 
 void initPaymentsFeature(GetIt sl) {
@@ -37,6 +38,8 @@ void initPaymentsFeature(GetIt sl) {
       () => GetPaymentHistoryUsecase(sl<PaymentsHistoryRepository>()));
   sl.registerLazySingleton(
       () => GetReceiptUrlUsecase(sl<PaymentsRepository>()));
+  sl.registerLazySingleton(
+      () => SyncPaymentUsecase(sl<PaymentsRepository>()));
 
   sl.registerFactory(
     () => PaymentsHistoryBloc(

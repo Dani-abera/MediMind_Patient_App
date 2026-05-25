@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/constants/api_constants.dart';
+import '../../../../core/di/service_locator.dart';
+import '../../../payments/domain/usecases/sync_payment_usecase.dart';
 import '../../../../core/routing/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
@@ -64,13 +66,12 @@ class _BookingSummaryPageState extends State<BookingSummaryPage> {
             desc:
                 'Consultation with Dr. ${state.selectedDoctor?.fullName ?? ''}',
             nativeCheckout: true,
-            namedRouteFallBack: '/home',
+            namedRouteFallBack: '',
             showPaymentMethodsOnGridView: true,
             availablePaymentMethods: ['mpesa', 'cbebirr', 'telebirr', 'ebirr'],
             onPaymentFinished: (message, reference, amount) {
               if (message == 'paymentSuccessful') {
-                context.read<BookingFlowBloc>().add(const PaymentCompleted());
-                context.goNamed(RouteNames.appointmentSuccess);
+                _handlePaymentSuccess(state.paymentId, context);
               } else if (message == 'paymentCancelled') {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
@@ -255,6 +256,15 @@ class _BookingSummaryPageState extends State<BookingSummaryPage> {
         );
       },
     );
+  }
+
+  Future<void> _handlePaymentSuccess(String? paymentId, BuildContext ctx) async {
+    if (paymentId != null) {
+      await sl<SyncPaymentUsecase>()(paymentId);
+    }
+    if (!ctx.mounted) return;
+    ctx.read<BookingFlowBloc>().add(const PaymentCompleted());
+    ctx.goNamed(RouteNames.appointmentSuccess);
   }
 
   bool _canConfirm(BookingFlowState state) =>

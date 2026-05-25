@@ -86,6 +86,7 @@ import '../../features/video_consultation/domain/usecases/get_consultation_useca
 import '../../features/video_consultation/domain/usecases/join_consultation_usecase.dart';
 import '../../features/video_consultation/presentation/bloc/video_call_bloc.dart';
 import '../../features/video_consultation/presentation/pages/video_call_page.dart';
+import '../../features/video_consultation/presentation/pages/appointment_chat_page.dart';
 import '../../features/video_consultation/services/video_signalr_service.dart';
 import '../di/service_locator.dart';
 import '../services/analytics_service.dart';
@@ -307,6 +308,14 @@ class AppRouter {
         ),
       ),
 
+      GoRoute(
+        name: RouteNames.appointmentChat,
+        path: '/chat/:id',
+        builder: (_, state) => AppointmentChatPage(
+          consultationId: state.pathParameters['id']!,
+        ),
+      ),
+
       // ── Scanner / Web / PDF (full-screen) ────────────────────────────
       GoRoute(
         name: RouteNames.qrScanner,
@@ -369,18 +378,11 @@ class AppRouter {
                     builder: (_, __) => const BookPage(),
                   ),
                   GoRoute(
-                    name: RouteNames.myAppointments,
-                    path: '/appointments',
-                    builder: (_, __) => const BookPage(),
-                    routes: [
-                      GoRoute(
-                        name: RouteNames.appointmentDetail,
-                        path: ':id',
-                        builder: (_, state) => AppointmentDetailPage(
-                          appointmentId: state.pathParameters['id']!,
-                        ),
-                      ),
-                    ],
+                    name: RouteNames.appointmentDetail,
+                    path: '/appointments/:id',
+                    builder: (_, state) => AppointmentDetailPage(
+                      appointmentId: state.pathParameters['id']!,
+                    ),
                   ),
                   GoRoute(
                     name: RouteNames.centerSearch,

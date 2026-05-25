@@ -27,7 +27,6 @@ class RouteNames {
   static const String appointmentSuccess = 'appointmentSuccess';
 
   // Appointments
-  static const String myAppointments = 'myAppointments';
   static const String appointmentDetail = 'appointmentDetail';
 
   // Health records
@@ -56,6 +55,7 @@ class RouteNames {
   // Telemedicine
   static const String videoCall = 'videoCall';
   static const String callSummary = 'callSummary';
+  static const String appointmentChat = 'appointmentChat';
 
   // Profile
   static const String editProfile = 'editProfile';

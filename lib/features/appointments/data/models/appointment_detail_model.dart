@@ -32,6 +32,7 @@ class AppointmentDetailModel extends AppointmentDetail {
     super.centerLongitude,
     super.videoConsultationId,
     super.canInitiateVideoConsultation,
+    super.canChat,
     super.videoConsultationStatus,
   });
 
@@ -73,6 +74,7 @@ class AppointmentDetailModel extends AppointmentDetail {
       videoConsultationId: json['videoConsultationId'] as String?,
       canInitiateVideoConsultation:
           json['canInitiateVideoConsultation'] as bool? ?? false,
+      canChat: json['canChat'] as bool? ?? false,
       videoConsultationStatus: json['videoConsultationStatus'] as String?,
     );
   }
@@ -80,9 +82,10 @@ class AppointmentDetailModel extends AppointmentDetail {
   static AppointmentStatus _parseStatus(String? s) =>
       switch (s?.toLowerCase()) {
         'confirmed' => AppointmentStatus.confirmed,
+        'inprogress' || 'in_progress' => AppointmentStatus.inProgress,
         'completed' => AppointmentStatus.completed,
         'cancelled' => AppointmentStatus.cancelled,
-        'noshow' => AppointmentStatus.noShow,
+        'noshow' || 'no_show' => AppointmentStatus.noShow,
         _ => AppointmentStatus.pending,
       };
 
