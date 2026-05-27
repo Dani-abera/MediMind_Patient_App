@@ -33,6 +33,7 @@ class VideoCallActive extends VideoCallState {
     this.isChatOpen = false,
     this.unreadCount = 0,
     this.lowBitrate = false,
+    this.remoteUid,
   });
 
   final VideoConsultation consultation;
@@ -43,6 +44,7 @@ class VideoCallActive extends VideoCallState {
   final bool isChatOpen;
   final int unreadCount;
   final bool lowBitrate;
+  final int? remoteUid;
 
   VideoCallActive copyWith({
     VideoConsultation? consultation,
@@ -53,6 +55,7 @@ class VideoCallActive extends VideoCallState {
     bool? isChatOpen,
     int? unreadCount,
     bool? lowBitrate,
+    int? Function()? remoteUid,
   }) =>
       VideoCallActive(
         consultation: consultation ?? this.consultation,
@@ -63,6 +66,7 @@ class VideoCallActive extends VideoCallState {
         isChatOpen: isChatOpen ?? this.isChatOpen,
         unreadCount: unreadCount ?? this.unreadCount,
         lowBitrate: lowBitrate ?? this.lowBitrate,
+        remoteUid: remoteUid != null ? remoteUid() : this.remoteUid,
       );
 
   @override
@@ -75,6 +79,7 @@ class VideoCallActive extends VideoCallState {
         isChatOpen,
         unreadCount,
         lowBitrate,
+        remoteUid,
       ];
 }
 

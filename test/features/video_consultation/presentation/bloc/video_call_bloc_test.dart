@@ -1,15 +1,14 @@
-import 'dart:async';
-
 import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:medimind/features/video_consultation/domain/entities/chat_message.dart';
 import 'package:medimind/features/video_consultation/domain/entities/video_consultation.dart';
 import 'package:medimind/features/video_consultation/domain/usecases/get_consultation_usecase.dart';
 import 'package:medimind/features/video_consultation/domain/usecases/join_consultation_usecase.dart';
+import 'package:medimind/features/video_consultation/domain/usecases/send_chat_message_usecase.dart';
 import 'package:medimind/features/video_consultation/presentation/bloc/video_call_bloc.dart';
 import 'package:medimind/features/video_consultation/presentation/bloc/video_call_event.dart';
 import 'package:medimind/features/video_consultation/presentation/bloc/video_call_state.dart';
-import 'package:medimind/features/video_consultation/services/video_signalr_service.dart';
+import 'package:medimind/features/video_consultation/services/agora_chat_service.dart';
+import 'package:medimind/core/storage/secure_storage.dart';
 import 'package:mocktail/mocktail.dart';
 
 class MockGetConsultationUsecase extends Mock
@@ -18,7 +17,12 @@ class MockGetConsultationUsecase extends Mock
 class MockJoinConsultationUsecase extends Mock
     implements JoinConsultationUsecase {}
 
-class MockVideoSignalRService extends Mock implements VideoSignalRService {}
+class MockSendChatMessageUsecase extends Mock
+    implements SendChatMessageUsecase {}
+
+class MockAgoraChatService extends Mock implements AgoraChatService {}
+
+class MockSecureStorage extends Mock implements SecureStorage {}
 
 final _consultation = VideoConsultation(
   id: 'c1',
@@ -32,39 +36,27 @@ final _consultation = VideoConsultation(
 void main() {
   late MockGetConsultationUsecase mockGetConsultation;
   late MockJoinConsultationUsecase mockJoinConsultation;
-  late MockVideoSignalRService mockSignalR;
-
-  final offerStream = StreamController<Map<String, dynamic>>.broadcast();
-  final answerStream = StreamController<Map<String, dynamic>>.broadcast();
-  final iceStream = StreamController<Map<String, dynamic>>.broadcast();
-  final chatStream = StreamController<ChatMessage>.broadcast();
-  final peerLeftStream = StreamController<void>.broadcast();
+  late MockSendChatMessageUsecase mockSendChatMessage;
+  late MockAgoraChatService mockChatService;
+  late MockSecureStorage mockSecureStorage;
 
   setUp(() {
     mockGetConsultation = MockGetConsultationUsecase();
     mockJoinConsultation = MockJoinConsultationUsecase();
-    mockSignalR = MockVideoSignalRService();
+    mockSendChatMessage = MockSendChatMessageUsecase();
+    mockChatService = MockAgoraChatService();
+    mockSecureStorage = MockSecureStorage();
 
-    when(() => mockSignalR.onOffer)
-        .thenAnswer((_) => offerStream.stream);
-    when(() => mockSignalR.onAnswer)
-        .thenAnswer((_) => answerStream.stream);
-    when(() => mockSignalR.onIceCandidate)
-        .thenAnswer((_) => iceStream.stream);
-    when(() => mockSignalR.onChatMessage)
-        .thenAnswer((_) => chatStream.stream);
-    when(() => mockSignalR.onPeerLeft)
-        .thenAnswer((_) => peerLeftStream.stream);
-    when(() => mockSignalR.connectVideo(any()))
-        .thenAnswer((_) async {});
-    when(() => mockSignalR.disconnect())
-        .thenAnswer((_) async {});
+    when(() => mockChatService.onMessage)
+        .thenAnswer((_) => const Stream.empty());
   });
 
   VideoCallBloc build() => VideoCallBloc(
         getConsultation: mockGetConsultation,
         joinConsultation: mockJoinConsultation,
-        videoSignalR: mockSignalR,
+        sendChatMessage: mockSendChatMessage,
+        chatService: mockChatService,
+        secureStorage: mockSecureStorage,
       );
 
   group('VideoCallMicToggled', () {
@@ -77,8 +69,7 @@ void main() {
       ),
       act: (bloc) => bloc.add(const VideoCallMicToggled()),
       expect: () => [
-        isA<VideoCallActive>()
-            .having((s) => s.isMuted, 'isMuted', true),
+        isA<VideoCallActive>().having((s) => s.isMuted, 'isMuted', true),
       ],
     );
 
@@ -92,8 +83,7 @@ void main() {
       ),
       act: (bloc) => bloc.add(const VideoCallMicToggled()),
       expect: () => [
-        isA<VideoCallActive>()
-            .having((s) => s.isMuted, 'isMuted', false),
+        isA<VideoCallActive>().having((s) => s.isMuted, 'isMuted', false),
       ],
     );
   });
@@ -210,9 +200,9 @@ void main() {
     blocTest<VideoCallBloc, VideoCallState>(
       'emits VideoCallErrorState',
       build: build,
-      act: (bloc) => bloc.add(const VideoCallError('WebRTC failed')),
+      act: (bloc) => bloc.add(const VideoCallError('Agora init failed')),
       expect: () => [
-        const VideoCallErrorState('WebRTC failed'),
+        const VideoCallErrorState('Agora init failed'),
       ],
     );
   });

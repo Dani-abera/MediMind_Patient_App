@@ -1,14 +1,15 @@
 import 'dart:async';
+import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../bloc/video_call_bloc.dart';
 import '../bloc/video_call_event.dart';
 import '../bloc/video_call_state.dart';
+import '../../domain/entities/chat_message.dart';
 
 class VideoCallPage extends StatefulWidget {
   const VideoCallPage({super.key, required this.consultationId});
@@ -89,14 +90,11 @@ class _VideoCallPageState extends State<VideoCallPage> {
           },
           child: switch (state) {
             VideoCallInitializing() => _loadingScaffold('Initializing…'),
-            VideoCallConnecting() =>
-              _loadingScaffold('Connecting to doctor…'),
+            VideoCallConnecting() => _loadingScaffold('Connecting to doctor…'),
             VideoCallPermissionDenied() => _permissionDeniedScaffold(),
-            VideoCallActive() =>
-              _activeCallScaffold(context, state),
+            VideoCallActive() => _activeCallScaffold(context, state),
             VideoCallEnded() => _loadingScaffold('Call ended'),
-            VideoCallErrorState(:final message) =>
-              _errorScaffold(message),
+            VideoCallErrorState(:final message) => _errorScaffold(message),
             _ => _loadingScaffold('Please wait…'),
           },
         );
@@ -110,8 +108,7 @@ class _VideoCallPageState extends State<VideoCallPage> {
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             const CircularProgressIndicator(color: Colors.white),
             SizedBox(height: 16.h),
-            Text(msg,
-                style: AppTypography.body.copyWith(color: Colors.white)),
+            Text(msg, style: AppTypography.body.copyWith(color: Colors.white)),
           ]),
         ),
       );
@@ -132,8 +129,8 @@ class _VideoCallPageState extends State<VideoCallPage> {
               SizedBox(height: 24.h),
               FilledButton(
                 onPressed: () => context.pop(),
-                style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.primary),
+                style:
+                    FilledButton.styleFrom(backgroundColor: AppColors.primary),
                 child: const Text('Go Back'),
               ),
             ]),
@@ -155,8 +152,8 @@ class _VideoCallPageState extends State<VideoCallPage> {
               SizedBox(height: 24.h),
               FilledButton(
                 onPressed: () => context.pop(),
-                style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.primary),
+                style:
+                    FilledButton.styleFrom(backgroundColor: AppColors.primary),
                 child: const Text('Go Back'),
               ),
             ]),
@@ -174,10 +171,14 @@ class _VideoCallPageState extends State<VideoCallPage> {
           children: [
             // Remote video — full screen
             Positioned.fill(
-              child: bloc.remoteRenderer != null
-                  ? RTCVideoView(bloc.remoteRenderer!,
-                      objectFit:
-                          RTCVideoViewObjectFit.RTCVideoViewObjectFitCover)
+              child: bloc.engine != null && state.remoteUid != null
+                  ? AgoraVideoView(
+                      controller: VideoViewController.remote(
+                        rtcEngine: bloc.engine!,
+                        canvas: VideoCanvas(uid: state.remoteUid!),
+                        connection: RtcConnection(channelId: bloc.channelId!),
+                      ),
+                    )
                   : Container(color: Colors.black87),
             ),
 
@@ -231,20 +232,15 @@ class _VideoCallPageState extends State<VideoCallPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            state.consultation.doctorName,
-                            style: AppTypography.body
-                                .copyWith(color: Colors.white),
-                          ),
-                          Text(
-                            state.consultation.doctorSpecialty,
-                            style: AppTypography.caption.copyWith(
-                                color: Colors.white70),
-                          ),
+                          Text(state.consultation.doctorName,
+                              style: AppTypography.body
+                                  .copyWith(color: Colors.white)),
+                          Text(state.consultation.doctorSpecialty,
+                              style: AppTypography.caption
+                                  .copyWith(color: Colors.white70)),
                         ],
                       ),
                     ),
-                    // Chat button with unread badge
                     Stack(
                       clipBehavior: Clip.none,
                       children: [
@@ -269,8 +265,7 @@ class _VideoCallPageState extends State<VideoCallPage> {
                                 child: Text(
                                   '${state.unreadCount}',
                                   style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 10.sp),
+                                      color: Colors.white, fontSize: 10.sp),
                                 ),
                               ),
                             ),
@@ -291,11 +286,13 @@ class _VideoCallPageState extends State<VideoCallPage> {
                 child: SizedBox(
                   width: 80.w,
                   height: 120.h,
-                  child: bloc.localRenderer != null
-                      ? RTCVideoView(bloc.localRenderer!,
-                          mirror: true,
-                          objectFit: RTCVideoViewObjectFit
-                              .RTCVideoViewObjectFitCover)
+                  child: bloc.engine != null
+                      ? AgoraVideoView(
+                          controller: VideoViewController(
+                            rtcEngine: bloc.engine!,
+                            canvas: const VideoCanvas(uid: 0),
+                          ),
+                        )
                       : Container(color: Colors.black54),
                 ),
               ),
@@ -329,13 +326,10 @@ class _VideoCallPageState extends State<VideoCallPage> {
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
                       _ControlBtn(
-                        icon: state.isMuted
-                            ? Icons.mic_off
-                            : Icons.mic,
+                        icon: state.isMuted ? Icons.mic_off : Icons.mic,
                         label: state.isMuted ? 'Unmute' : 'Mute',
                         active: !state.isMuted,
-                        onTap: () =>
-                            bloc.add(const VideoCallMicToggled()),
+                        onTap: () => bloc.add(const VideoCallMicToggled()),
                       ),
                       _ControlBtn(
                         icon: state.isCameraOff
@@ -343,12 +337,10 @@ class _VideoCallPageState extends State<VideoCallPage> {
                             : Icons.videocam,
                         label: state.isCameraOff ? 'Camera On' : 'Camera Off',
                         active: !state.isCameraOff,
-                        onTap: () =>
-                            bloc.add(const VideoCallCameraToggled()),
+                        onTap: () => bloc.add(const VideoCallCameraToggled()),
                       ),
                       _EndCallBtn(
-                        onTap: () =>
-                            bloc.add(const VideoCallEndRequested()),
+                        onTap: () => bloc.add(const VideoCallEndRequested()),
                       ),
                       _ControlBtn(
                         icon: state.isSpeakerOn
@@ -356,15 +348,13 @@ class _VideoCallPageState extends State<VideoCallPage> {
                             : Icons.volume_off,
                         label: 'Speaker',
                         active: state.isSpeakerOn,
-                        onTap: () =>
-                            bloc.add(const VideoCallSpeakerToggled()),
+                        onTap: () => bloc.add(const VideoCallSpeakerToggled()),
                       ),
                       _ControlBtn(
                         icon: Icons.flip_camera_ios,
                         label: 'Flip',
                         active: true,
-                        onTap: () =>
-                            bloc.add(const VideoCallCameraSwitched()),
+                        onTap: () => bloc.add(const VideoCallCameraSwitched()),
                       ),
                     ],
                   ),
@@ -377,8 +367,7 @@ class _VideoCallPageState extends State<VideoCallPage> {
               _ChatDrawer(
                 messages: state.messages,
                 onClose: () => bloc.add(const VideoCallChatToggled()),
-                onSend: (text) =>
-                    bloc.add(VideoCallMessageSent(text)),
+                onSend: (text) => bloc.add(VideoCallMessageSent(text)),
               ),
           ],
         ),
@@ -420,8 +409,7 @@ class _ControlBtn extends StatelessWidget {
           ),
           SizedBox(height: 4.h),
           Text(label,
-              style: TextStyle(
-                  color: Colors.white70, fontSize: 10.sp)),
+              style: TextStyle(color: Colors.white70, fontSize: 10.sp)),
         ],
       ),
     );
@@ -450,8 +438,7 @@ class _EndCallBtn extends StatelessWidget {
           ),
           SizedBox(height: 4.h),
           Text('End',
-              style: TextStyle(
-                  color: Colors.white70, fontSize: 10.sp)),
+              style: TextStyle(color: Colors.white70, fontSize: 10.sp)),
         ],
       ),
     );
@@ -465,7 +452,7 @@ class _ChatDrawer extends StatefulWidget {
     required this.onSend,
   });
 
-  final List<dynamic> messages;
+  final List<ChatMessage> messages;
   final VoidCallback onClose;
   final void Function(String) onSend;
 
@@ -514,15 +501,13 @@ class _ChatDrawerState extends State<_ChatDrawer> {
         ),
         child: Column(
           children: [
-            // Handle + header
             Padding(
               padding: EdgeInsets.symmetric(vertical: 8.h),
               child: Row(
                 children: [
                   SizedBox(width: 16.w),
                   Text('Chat',
-                      style:
-                          AppTypography.body.copyWith(color: Colors.white)),
+                      style: AppTypography.body.copyWith(color: Colors.white)),
                   const Spacer(),
                   IconButton(
                     icon: const Icon(Icons.close, color: Colors.white70),
@@ -532,7 +517,6 @@ class _ChatDrawerState extends State<_ChatDrawer> {
               ),
             ),
             const Divider(color: Colors.white24, height: 1),
-            // Messages
             Expanded(
               child: ListView.builder(
                 controller: _scrollController,
@@ -540,7 +524,7 @@ class _ChatDrawerState extends State<_ChatDrawer> {
                 itemCount: widget.messages.length,
                 itemBuilder: (_, i) {
                   final msg = widget.messages[i];
-                  final isPatient = msg.isFromPatient as bool;
+                  final isPatient = msg.isFromPatient;
                   return Align(
                     alignment: isPatient
                         ? Alignment.centerRight
@@ -549,8 +533,7 @@ class _ChatDrawerState extends State<_ChatDrawer> {
                       margin: EdgeInsets.only(bottom: 8.h),
                       padding: EdgeInsets.symmetric(
                           horizontal: 12.w, vertical: 8.h),
-                      constraints:
-                          BoxConstraints(maxWidth: 240.w),
+                      constraints: BoxConstraints(maxWidth: 240.w),
                       decoration: BoxDecoration(
                         color: isPatient
                             ? AppColors.primary.withValues(alpha: 0.8)
@@ -558,7 +541,7 @@ class _ChatDrawerState extends State<_ChatDrawer> {
                         borderRadius: BorderRadius.circular(12.r),
                       ),
                       child: Text(
-                        msg.content as String,
+                        msg.content,
                         style: AppTypography.caption
                             .copyWith(color: Colors.white),
                       ),
@@ -567,12 +550,8 @@ class _ChatDrawerState extends State<_ChatDrawer> {
                 },
               ),
             ),
-            // Input
             Container(
-              padding: EdgeInsets.fromLTRB(
-                  12.w,
-                  8.h,
-                  12.w,
+              padding: EdgeInsets.fromLTRB(12.w, 8.h, 12.w,
                   MediaQuery.of(context).viewInsets.bottom + 12.h),
               child: Row(
                 children: [
@@ -582,8 +561,7 @@ class _ChatDrawerState extends State<_ChatDrawer> {
                       style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
                         hintText: 'Type a message…',
-                        hintStyle:
-                            const TextStyle(color: Colors.white54),
+                        hintStyle: const TextStyle(color: Colors.white54),
                         filled: true,
                         fillColor: Colors.white.withValues(alpha: 0.1),
                         border: OutlineInputBorder(

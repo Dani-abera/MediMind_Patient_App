@@ -1,11 +1,18 @@
 import 'dart:async';
+
+import 'package:agora_rtc_engine/agora_rtc_engine.dart';
+import 'package:bloc_concurrency/bloc_concurrency.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_webrtc/flutter_webrtc.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:permission_handler/permission_handler.dart';
+
+import '../../../../core/storage/secure_storage.dart';
 import '../../domain/entities/chat_message.dart';
 import '../../domain/usecases/get_consultation_usecase.dart';
 import '../../domain/usecases/join_consultation_usecase.dart';
-import '../../services/video_signalr_service.dart';
+import '../../domain/usecases/send_chat_message_usecase.dart';
+import '../../services/agora_chat_service.dart';
 import 'video_call_event.dart';
 import 'video_call_state.dart';
 
@@ -13,46 +20,47 @@ class VideoCallBloc extends Bloc<VideoCallEvent, VideoCallState> {
   VideoCallBloc({
     required this.getConsultation,
     required this.joinConsultation,
-    required this.videoSignalR,
+    required this.sendChatMessage,
+    required this.chatService,
+    required this.secureStorage,
   }) : super(const VideoCallInitializing()) {
-    on<VideoCallStarted>(_onStarted);
+    on<VideoCallStarted>(_onStarted, transformer: droppable());
     on<VideoCallMicToggled>(_onMicToggled);
     on<VideoCallCameraToggled>(_onCameraToggled);
     on<VideoCallSpeakerToggled>(_onSpeakerToggled);
     on<VideoCallCameraSwitched>(_onCameraSwitched);
     on<VideoCallChatToggled>(_onChatToggled);
     on<VideoCallMessageSent>(_onMessageSent);
+    on<VideoCallChatMessageReceived>(_onChatMessageReceived);
     on<VideoCallPeerLeft>(_onPeerLeft);
     on<VideoCallEndRequested>(_onEnded);
     on<VideoCallError>(_onError);
     on<VideoCallBitrateUpdated>(_onBitrateUpdated);
-    on<VideoCallPeerJoined>(_onPeerJoined);
   }
 
   final GetConsultationUsecase getConsultation;
   final JoinConsultationUsecase joinConsultation;
-  final VideoSignalRService videoSignalR;
+  final SendChatMessageUsecase sendChatMessage;
+  final AgoraChatService chatService;
+  final SecureStorage secureStorage;
 
-  RTCPeerConnection? _peerConnection;
-  MediaStream? _localStream;
-  RTCVideoRenderer? _localRenderer;
-  RTCVideoRenderer? _remoteRenderer;
+  RtcEngine? _engine;
+  String? _channelId; // Agora channel == roomId from backend
+  String? _consultationId; // backend consultationId (GUID) — separate from
+  // the Agora channel name; used for REST chat
+  // persistence endpoint which expects a GUID.
+  String _userType = 'patient';
+  int? _remoteUid; // Track separately so a uid arriving before VideoCallActive
+  // is emitted isn't dropped by the state-class race check.
+  StreamSubscription<ChatMessage>? _chatSub;
 
-  StreamSubscription<dynamic>? _offerSub;
-  StreamSubscription<dynamic>? _answerSub;
-  StreamSubscription<dynamic>? _iceSub;
-  StreamSubscription<dynamic>? _chatSub;
-  StreamSubscription<dynamic>? _peerLeftSub;
-  StreamSubscription<dynamic>? _userJoinedSub;
-
-  bool _offerSent = false;
-
-  RTCVideoRenderer? get localRenderer => _localRenderer;
-  RTCVideoRenderer? get remoteRenderer => _remoteRenderer;
+  RtcEngine? get engine => _engine;
+  String? get channelId => _channelId;
 
   Future<void> _onStarted(
-      VideoCallStarted event, Emitter<VideoCallState> emit) async {
-    // Check permissions
+    VideoCallStarted event,
+    Emitter<VideoCallState> emit,
+  ) async {
     final camStatus = await Permission.camera.request();
     final micStatus = await Permission.microphone.request();
     if (camStatus.isDenied || micStatus.isDenied) {
@@ -60,174 +68,214 @@ class VideoCallBloc extends Bloc<VideoCallEvent, VideoCallState> {
       return;
     }
 
-    // Fetch consultation metadata
-    final result = await getConsultation(event.consultationId);
-    if (result.isLeft()) {
-      emit(VideoCallErrorState(
-          result.fold((f) => f.message, (_) => 'Unknown error')));
+    // Join first to get Agora token + roomId from the backend.
+    final joinResult = await joinConsultation(event.consultationId);
+    if (joinResult.isLeft()) {
+      emit(
+        VideoCallErrorState(
+          joinResult.fold((f) => f.message, (_) => 'Unknown error'),
+        ),
+      );
       return;
     }
-    final consultation = result.fold((f) => null, (c) => c)!;
+    final (:token, :roomId, :appId, :userType, :rtmToken, :rtmUserId) =
+        joinResult.fold((_) => throw StateError('unreachable'), (r) => r);
+    _userType = userType;
+
+    final result = await getConsultation(event.consultationId);
+    if (result.isLeft()) {
+      emit(
+        VideoCallErrorState(
+          result.fold((f) => f.message, (_) => 'Unknown error'),
+        ),
+      );
+      return;
+    }
+    final consultation = result.fold((_) => null, (c) => c)!;
     emit(VideoCallConnecting(consultation));
 
-    // Init renderers
-    _localRenderer = RTCVideoRenderer();
-    _remoteRenderer = RTCVideoRenderer();
-    await _localRenderer!.initialize();
-    await _remoteRenderer!.initialize();
+    // Use appId from backend; fall back to .env if not yet configured.
+    final resolvedAppId = appId.isNotEmpty
+        ? appId
+        : (dotenv.env['AGORA_APP_ID'] ?? '');
+    _channelId = roomId;
+    _consultationId = event.consultationId;
+    _remoteUid = null;
 
-    // Get local stream
-    _localStream = await navigator.mediaDevices.getUserMedia({
-      'audio': true,
-      'video': {'facingMode': 'user'},
-    });
-    _localRenderer!.srcObject = _localStream;
-
-    // Create peer connection
-    _peerConnection = await createPeerConnection({
-      'iceServers': [
-        {'urls': 'stun:stun.l.google.com:19302'},
-      ],
-    });
-
-    _localStream!.getTracks().forEach((track) {
-      _peerConnection!.addTrack(track, _localStream!);
-    });
-
-    _peerConnection!.onIceCandidate = (candidate) {
-      if (candidate.candidate != null) {
-        videoSignalR.sendIceCandidate(candidate.toMap());
-      }
-    };
-
-    _peerConnection!.onTrack = (event) {
-      if (event.streams.isNotEmpty) {
-        _remoteRenderer!.srcObject = event.streams[0];
-      }
-    };
-
-    // Register SignalR offer/answer/ICE handlers before connecting
-    _offerSub = videoSignalR.onOffer.listen((sdp) async {
-      await _peerConnection!
-          .setRemoteDescription(RTCSessionDescription(sdp['sdp'], sdp['type']));
-      final answer = await _peerConnection!.createAnswer();
-      await _peerConnection!.setLocalDescription(answer);
-      await videoSignalR.sendAnswer({'sdp': answer.sdp, 'type': answer.type});
-    });
-
-    _answerSub = videoSignalR.onAnswer.listen((sdp) async {
-      await _peerConnection!
-          .setRemoteDescription(RTCSessionDescription(sdp['sdp'], sdp['type']));
-    });
-
-    _iceSub = videoSignalR.onIceCandidate.listen((c) async {
-      await _peerConnection!.addCandidate(RTCIceCandidate(
-          c['candidate'], c['sdpMid'], c['sdpMLineIndex']));
-    });
-
-    _peerLeftSub = videoSignalR.onPeerLeft.listen((_) {
-      add(const VideoCallPeerLeft());
-    });
-
-    // Connect to SignalR and join the room
-    await videoSignalR.connectVideo(event.consultationId);
-
-    // Call the REST join endpoint to register participation and get peer list
-    final joinResult = await joinConsultation(event.consultationId);
-    joinResult.fold(
-      (failure) {
-        // Non-fatal: SignalR join still works; log but continue
-      },
-      (myConnectionId) {
-        // myConnectionId is our own SignalR connectionId (not peer's)
-      },
+    final tokenPrefix = token.isEmpty ? '(empty)' : token.substring(0, 8);
+    debugPrint(
+      '[VideoCall] joining channel="$_channelId" appId="${resolvedAppId.isEmpty ? "(empty)" : resolvedAppId.substring(0, 8)}..." token="$tokenPrefix..." userType=$_userType',
     );
 
-    // Listen for a peer joining and send the offer to them
-    _userJoinedSub = videoSignalR.onUserJoined.listen((data) async {
-      if (!_offerSent) {
-        _offerSent = true;
-        final offer = await _peerConnection!.createOffer();
-        await _peerConnection!.setLocalDescription(offer);
-        await videoSignalR.sendOffer({'sdp': offer.sdp, 'type': offer.type});
-      }
-    });
+    try {
+      _engine = createAgoraRtcEngine();
+      await _engine!.initialize(RtcEngineContext(appId: resolvedAppId));
+      await _engine!.enableVideo();
+      await _engine!.enableAudio();
 
-    emit(VideoCallActive(
-      consultation: consultation,
-      messages: const [],
-    ));
+      _engine!.registerEventHandler(
+        RtcEngineEventHandler(
+          onJoinChannelSuccess: (connection, elapsed) {
+            debugPrint(
+              '[VideoCall] joinChannelSuccess channel="${connection.channelId}" localUid=${connection.localUid} elapsedMs=$elapsed',
+            );
+          },
+          onUserJoined: (connection, uid, elapsed) {
+            debugPrint(
+              '[VideoCall] onUserJoined remoteUid=$uid channel="${connection.channelId}" elapsedMs=$elapsed',
+            );
+            _remoteUid = uid;
+            final current = state;
+            if (current is VideoCallActive) {
+              emit(current.copyWith(remoteUid: () => uid));
+            }
+          },
+          onUserOffline: (connection, uid, reason) {
+            debugPrint('[VideoCall] onUserOffline uid=$uid reason=$reason');
+            _remoteUid = null;
+            add(const VideoCallPeerLeft());
+          },
+          onError: (err, msg) {
+            debugPrint('[VideoCall] onError code=$err msg="$msg"');
+          },
+          onConnectionStateChanged: (conn, connState, reason) {
+            debugPrint(
+              '[VideoCall] connectionState=$connState reason=$reason channel="${conn.channelId}"',
+            );
+          },
+          onTokenPrivilegeWillExpire: (conn, _) {
+            debugPrint('[VideoCall] tokenPrivilegeWillExpire');
+          },
+          onRtcStats: (connection, stats) {
+            add(
+              VideoCallBitrateUpdated(
+                (stats.txKBitRate ?? 0) + (stats.rxKBitRate ?? 0),
+              ),
+            );
+          },
+        ),
+      );
 
-    // Listen for incoming chat messages
-    _chatSub = videoSignalR.onChatMessage.listen((msg) {
-      final current = state;
-      if (current is VideoCallActive) {
-        final isOpen = current.isChatOpen;
-        emit(current.copyWith(
-          messages: [...current.messages, msg],
-          unreadCount: isOpen ? 0 : current.unreadCount + 1,
-        ));
-      }
-    });
-  }
+      await _engine!.startPreview();
+      await _engine!.joinChannel(
+        token: token,
+        channelId: _channelId!,
+        uid: 0,
+        options: const ChannelMediaOptions(
+          clientRoleType: ClientRoleType.clientRoleBroadcaster,
+          channelProfile: ChannelProfileType.channelProfileCommunication,
+          publishCameraTrack: true,
+          publishMicrophoneTrack: true,
+          autoSubscribeAudio: true,
+          autoSubscribeVideo: true,
+        ),
+      );
 
-  Future<void> _onPeerJoined(
-      VideoCallPeerJoined event, Emitter<VideoCallState> emit) async {
-    // Peer joined — if we haven't sent an offer yet, send one now
-    if (!_offerSent && _peerConnection != null) {
-      _offerSent = true;
-      final offer = await _peerConnection!.createOffer();
-      await _peerConnection!.setLocalDescription(offer);
-      await videoSignalR.sendOffer({'sdp': offer.sdp, 'type': offer.type});
+      // RTM token is bound to the userId the backend used when signing it.
+      // Fall back to a synthesised id only if the backend hasn't been deployed yet.
+      final rtmUid = rtmUserId.isNotEmpty
+          ? rtmUserId
+          : (await secureStorage.getUserId() ??
+                'p_${event.consultationId.substring(0, 8)}');
+      await chatService.connect(
+        appId: resolvedAppId,
+        userId: rtmUid,
+        rtmToken: rtmToken,
+        consultationId: event.consultationId,
+      );
+      _chatSub = chatService.onMessage.listen((msg) {
+        add(VideoCallChatMessageReceived(msg));
+      });
+
+      emit(
+        VideoCallActive(
+          consultation: consultation,
+          messages: const [],
+          remoteUid: _remoteUid, // pick up uid if onUserJoined already fired
+        ),
+      );
+    } catch (e) {
+      debugPrint('[VideoCall] Error initializing Agora engine: $e');
+      emit(VideoCallErrorState('Failed to initialize video call: $e'));
+      _cleanup();
     }
   }
 
-  void _onMicToggled(
-      VideoCallMicToggled event, Emitter<VideoCallState> emit) {
+  Future<void> _onMicToggled(
+    VideoCallMicToggled event,
+    Emitter<VideoCallState> emit,
+  ) async {
     final current = state;
     if (current is! VideoCallActive) return;
     final muted = !current.isMuted;
-    _localStream?.getAudioTracks().forEach((t) => t.enabled = !muted);
+    await _engine?.muteLocalAudioStream(muted);
     emit(current.copyWith(isMuted: muted));
   }
 
-  void _onCameraToggled(
-      VideoCallCameraToggled event, Emitter<VideoCallState> emit) {
+  Future<void> _onCameraToggled(
+    VideoCallCameraToggled event,
+    Emitter<VideoCallState> emit,
+  ) async {
     final current = state;
     if (current is! VideoCallActive) return;
     final off = !current.isCameraOff;
-    _localStream?.getVideoTracks().forEach((t) => t.enabled = !off);
+    await _engine?.muteLocalVideoStream(off);
     emit(current.copyWith(isCameraOff: off));
   }
 
-  void _onSpeakerToggled(
-      VideoCallSpeakerToggled event, Emitter<VideoCallState> emit) {
+  Future<void> _onSpeakerToggled(
+    VideoCallSpeakerToggled event,
+    Emitter<VideoCallState> emit,
+  ) async {
     final current = state;
     if (current is! VideoCallActive) return;
-    emit(current.copyWith(isSpeakerOn: !current.isSpeakerOn));
+    final speakerOn = !current.isSpeakerOn;
+    await _engine?.setEnableSpeakerphone(speakerOn);
+    emit(current.copyWith(isSpeakerOn: speakerOn));
   }
 
   Future<void> _onCameraSwitched(
-      VideoCallCameraSwitched event, Emitter<VideoCallState> emit) async {
-    final videoTrack = _localStream?.getVideoTracks().firstOrNull;
-    if (videoTrack != null) {
-      await Helper.switchCamera(videoTrack);
-    }
+    VideoCallCameraSwitched event,
+    Emitter<VideoCallState> emit,
+  ) async {
+    await _engine?.switchCamera();
   }
 
   void _onChatToggled(
-      VideoCallChatToggled event, Emitter<VideoCallState> emit) {
+    VideoCallChatToggled event,
+    Emitter<VideoCallState> emit,
+  ) {
     final current = state;
     if (current is! VideoCallActive) return;
     final open = !current.isChatOpen;
-    emit(current.copyWith(isChatOpen: open, unreadCount: open ? 0 : current.unreadCount));
+    emit(
+      current.copyWith(
+        isChatOpen: open,
+        unreadCount: open ? 0 : current.unreadCount,
+      ),
+    );
   }
 
   Future<void> _onMessageSent(
-      VideoCallMessageSent event, Emitter<VideoCallState> emit) async {
+    VideoCallMessageSent event,
+    Emitter<VideoCallState> emit,
+  ) async {
     final current = state;
-    if (current is! VideoCallActive) return;
-    await videoSignalR.sendChatMessage(event.content);
+    if (current is! VideoCallActive || _channelId == null) return;
+
+    await chatService.sendMessage(
+      content: event.content,
+      senderName: 'You',
+      senderType: _userType,
+    );
+
+    // Persist via REST. The endpoint expects a consultation GUID, NOT the
+    // Agora channel name (`room_<hex>`) — using _channelId here causes a 404.
+    final consultationIdForRest = _consultationId;
+    if (consultationIdForRest != null) {
+      sendChatMessage(consultationIdForRest, event.content).ignore();
+    }
+
     final msg = ChatMessage(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       senderName: 'You',
@@ -238,13 +286,31 @@ class VideoCallBloc extends Bloc<VideoCallEvent, VideoCallState> {
     emit(current.copyWith(messages: [...current.messages, msg]));
   }
 
+  void _onChatMessageReceived(
+    VideoCallChatMessageReceived event,
+    Emitter<VideoCallState> emit,
+  ) {
+    final current = state;
+    if (current is VideoCallActive) {
+      final isOpen = current.isChatOpen;
+      emit(
+        current.copyWith(
+          messages: [...current.messages, event.message],
+          unreadCount: isOpen ? 0 : current.unreadCount + 1,
+        ),
+      );
+    }
+  }
+
   void _onPeerLeft(VideoCallPeerLeft event, Emitter<VideoCallState> emit) {
     emit(const VideoCallEnded());
     _cleanup();
   }
 
   Future<void> _onEnded(
-      VideoCallEndRequested event, Emitter<VideoCallState> emit) async {
+    VideoCallEndRequested event,
+    Emitter<VideoCallState> emit,
+  ) async {
     emit(const VideoCallEnded());
     _cleanup();
   }
@@ -254,7 +320,9 @@ class VideoCallBloc extends Bloc<VideoCallEvent, VideoCallState> {
   }
 
   void _onBitrateUpdated(
-      VideoCallBitrateUpdated event, Emitter<VideoCallState> emit) {
+    VideoCallBitrateUpdated event,
+    Emitter<VideoCallState> emit,
+  ) {
     final current = state;
     if (current is VideoCallActive) {
       emit(current.copyWith(lowBitrate: event.kbps < 500));
@@ -262,22 +330,33 @@ class VideoCallBloc extends Bloc<VideoCallEvent, VideoCallState> {
   }
 
   void _cleanup() {
-    _offerSub?.cancel();
-    _answerSub?.cancel();
-    _iceSub?.cancel();
     _chatSub?.cancel();
-    _peerLeftSub?.cancel();
-    _userJoinedSub?.cancel();
-    _localStream?.dispose();
-    _peerConnection?.close();
-    _localRenderer?.dispose();
-    _remoteRenderer?.dispose();
-    videoSignalR.disconnect();
+    _chatSub = null;
+    if (_channelId != null) {
+      chatService.disconnect().ignore();
+    }
+    _engine?.leaveChannel();
+    _engine?.release();
+    _engine = null;
+    _channelId = null;
+    _consultationId = null;
+    _remoteUid = null;
   }
 
   @override
-  Future<void> close() {
-    _cleanup();
+  Future<void> close() async {
+    _chatSub?.cancel();
+    _chatSub = null;
+    if (_channelId != null) {
+      await chatService.disconnect();
+    }
+    chatService.dispose();
+    _engine?.leaveChannel();
+    _engine?.release();
+    _engine = null;
+    _channelId = null;
+    _consultationId = null;
+    _remoteUid = null;
     return super.close();
   }
 }

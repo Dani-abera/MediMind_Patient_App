@@ -1,14 +1,17 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/di/service_locator.dart';
+import '../../../../core/storage/secure_storage.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../../core/storage/secure_storage.dart';
 import '../../domain/entities/chat_message.dart';
-import '../../services/video_signalr_service.dart';
+import '../../domain/repositories/video_consultation_repository.dart';
+import '../../services/agora_chat_service.dart';
 
 class AppointmentChatPage extends StatefulWidget {
   final String consultationId;
@@ -19,33 +22,59 @@ class AppointmentChatPage extends StatefulWidget {
 }
 
 class _AppointmentChatPageState extends State<AppointmentChatPage> {
-  late final VideoSignalRService _signalR;
+  late final AgoraChatService _chatService;
   final List<ChatMessage> _messages = [];
   final TextEditingController _input = TextEditingController();
   final ScrollController _scroll = ScrollController();
+  StreamSubscription<ChatMessage>? _sub;
   bool _connected = false;
 
   @override
   void initState() {
     super.initState();
-    _signalR = VideoSignalRService(secureStorage: sl<SecureStorage>());
-    _signalR.onChatMessage.listen((msg) {
+    _chatService = AgoraChatService();
+    _connect();
+  }
+
+  Future<void> _connect() async {
+    // Use the backend join API to obtain a valid Agora RTM token + matching userId.
+    final joinResult = await sl<VideoConsultationRepository>()
+        .joinConsultation(widget.consultationId);
+    final fallbackAppId = dotenv.env['AGORA_APP_ID'] ?? '';
+    final fallbackUserId = await sl<SecureStorage>().getUserId() ??
+        'p_${widget.consultationId.substring(0, 8)}';
+
+    final (appId, rtmToken, userId) = joinResult.fold(
+      (_) => (fallbackAppId, '', fallbackUserId),
+      (r) => (
+        r.appId.isNotEmpty ? r.appId : fallbackAppId,
+        r.rtmToken,
+        r.rtmUserId.isNotEmpty ? r.rtmUserId : fallbackUserId,
+      ),
+    );
+
+    await _chatService.connect(
+      appId: appId,
+      userId: userId,
+      rtmToken: rtmToken,
+      consultationId: widget.consultationId,
+    );
+
+    _sub = _chatService.onMessage.listen((msg) {
       if (mounted) {
         setState(() => _messages.add(msg));
         _scrollToBottom();
       }
     });
-    _connect();
-  }
 
-  Future<void> _connect() async {
-    await _signalR.connectVideo(widget.consultationId);
     if (mounted) setState(() => _connected = true);
   }
 
   @override
   void dispose() {
-    _signalR.dispose();
+    _sub?.cancel();
+    _chatService.disconnect().ignore();
+    _chatService.dispose();
     _input.dispose();
     _scroll.dispose();
     super.dispose();
@@ -67,7 +96,29 @@ class _AppointmentChatPageState extends State<AppointmentChatPage> {
     final text = _input.text.trim();
     if (text.isEmpty || !_connected) return;
     _input.clear();
-    await _signalR.sendChatMessage(text);
+
+    await _chatService.sendMessage(
+      content: text,
+      senderName: 'You',
+      senderType: 'patient',
+    );
+
+    // Persist to backend (fire and forget)
+    sl<VideoConsultationRepository>()
+        .sendMessage(widget.consultationId, text)
+        .ignore();
+
+    // Optimistic local add
+    if (mounted) {
+      setState(() => _messages.add(ChatMessage(
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            senderName: 'You',
+            content: text,
+            sentAt: DateTime.now(),
+            isFromPatient: true,
+          )));
+      _scrollToBottom();
+    }
   }
 
   @override
@@ -87,7 +138,8 @@ class _AppointmentChatPageState extends State<AppointmentChatPage> {
                 Icon(
                   Icons.circle,
                   size: 10.r,
-                  color: _connected ? AppColors.success : AppColors.neutral500,
+                  color:
+                      _connected ? AppColors.success : AppColors.neutral500,
                 ),
                 SizedBox(width: 6.w),
                 Text(
@@ -142,7 +194,8 @@ class _MessageBubble extends StatelessWidget {
       alignment: isPatient ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         margin: EdgeInsets.symmetric(vertical: 4.h),
-        padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
+        padding:
+            EdgeInsets.symmetric(horizontal: 14.w, vertical: 10.h),
         constraints: BoxConstraints(
             maxWidth: MediaQuery.of(context).size.width * 0.72),
         decoration: BoxDecoration(

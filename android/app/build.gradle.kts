@@ -41,6 +41,20 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+
+    // agora_rtm 2.x and agora_rtc_engine 6.x both ship libaosl.so. Pick the first
+    // copy at merge time to avoid a mergeDebugNativeLibs failure — the two files
+    // are byte-identical so either is fine.
+    packaging {
+        jniLibs {
+            pickFirsts += setOf(
+                "lib/arm64-v8a/libaosl.so",
+                "lib/armeabi-v7a/libaosl.so",
+                "lib/x86/libaosl.so",
+                "lib/x86_64/libaosl.so",
+            )
+        }
+    }
 }
 
 kotlin {

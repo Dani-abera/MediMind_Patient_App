@@ -7,13 +7,13 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/di/service_locator.dart';
-import '../../../payments/domain/usecases/sync_payment_usecase.dart';
 import '../../../../core/routing/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/feedback/app_shimmer.dart';
 import '../../../payments/domain/usecases/initiate_payment_usecase.dart';
+import '../../../payments/domain/usecases/sync_payment_usecase.dart';
 import '../../../video_consultation/domain/repositories/video_consultation_repository.dart';
 import '../../domain/entities/appointment_detail.dart';
 import '../../domain/usecases/cancel_appointment_usecase.dart';
@@ -470,25 +470,29 @@ class _DateTimeInfo extends StatelessWidget {
         ? 'In ${diff.inHours} hour${diff.inHours == 1 ? '' : 's'}'
         : 'Soon';
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          DateFormat('EEEE, MMMM d, yyyy').format(detail.appointmentTime),
-          style: AppTypography.body.copyWith(fontWeight: FontWeight.w600),
-        ),
-        Text(
-          DateFormat('h:mm a').format(detail.appointmentTime),
-          style: AppTypography.subtitle.copyWith(color: AppColors.primary),
-        ),
-        if (countdown != null) ...[
-          SizedBox(height: 4.h),
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(12.r),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Text(
-            countdown,
-            style: AppTypography.caption.copyWith(color: AppColors.success),
+            DateFormat('EEEE, MMMM d, yyyy').format(detail.appointmentTime),
+            style: AppTypography.body.copyWith(fontWeight: FontWeight.w600),
           ),
+          Text(
+            DateFormat('h:mm a').format(detail.appointmentTime),
+            style: AppTypography.subtitle.copyWith(color: AppColors.primary),
+          ),
+          if (countdown != null) ...[
+            SizedBox(height: 4.h),
+            Text(
+              countdown,
+              style: AppTypography.caption.copyWith(color: AppColors.success),
+            ),
+          ],
         ],
-      ],
+      ),
     );
   }
 }
@@ -636,8 +640,8 @@ class _ActionButtons extends StatelessWidget {
               joiningCall
                   ? 'Connecting...'
                   : detail.videoConsultationStatus == 'InProgress'
-                      ? 'Join Video Call'
-                      : 'Join Video Call',
+                  ? 'Join Video Call'
+                  : 'Join Video Call',
               style: AppTypography.body.copyWith(color: AppColors.white),
             ),
             style: ElevatedButton.styleFrom(

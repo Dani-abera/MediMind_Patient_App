@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../domain/entities/chat_message.dart';
 
 abstract class VideoCallEvent extends Equatable {
   const VideoCallEvent();
@@ -40,6 +41,13 @@ class VideoCallMessageSent extends VideoCallEvent {
   List<Object?> get props => [content];
 }
 
+class VideoCallChatMessageReceived extends VideoCallEvent {
+  const VideoCallChatMessageReceived(this.message);
+  final ChatMessage message;
+  @override
+  List<Object?> get props => [message];
+}
+
 class VideoCallPeerLeft extends VideoCallEvent {
   const VideoCallPeerLeft();
 }
@@ -60,11 +68,4 @@ class VideoCallBitrateUpdated extends VideoCallEvent {
   final int kbps;
   @override
   List<Object?> get props => [kbps];
-}
-
-class VideoCallPeerJoined extends VideoCallEvent {
-  const VideoCallPeerJoined(this.connectionId);
-  final String connectionId;
-  @override
-  List<Object?> get props => [connectionId];
 }

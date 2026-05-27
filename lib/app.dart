@@ -10,6 +10,7 @@ import 'core/di/service_locator.dart';
 import 'core/network/network_info.dart';
 import 'core/routing/app_router.dart';
 import 'core/services/analytics_service.dart';
+import 'core/services/notification_service.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/presentation/bloc/auth/auth_bloc.dart';
 import 'features/auth/presentation/bloc/auth/auth_state.dart';
@@ -88,9 +89,13 @@ class _AppWrapperState extends State<_AppWrapper> {
   @override
   void initState() {
     super.initState();
-    // Wire router to notification service for deep links
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      AppRouter.config.routerDelegate.addListener(() {});
+    // Wire router to notification service and register the FCM tap listeners
+    // (onMessage, onMessageOpenedApp, getInitialMessage). Without this, tapping
+    // the "Dr. … is ready" notification on the patient device does nothing —
+    // the OS shows the banner but no Dart-side code runs on tap.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      NotificationService.instance.setRouter(AppRouter.config);
+      await NotificationService.instance.init();
     });
   }
 

@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:go_router/go_router.dart';
 import 'package:timezone/data/latest.dart' as tz_data;
@@ -19,7 +21,18 @@ class NotificationService {
   String? _currentToken;
 
   GoRouter? _router;
-  void setRouter(GoRouter router) => _router = router;
+  // If an FCM tap fires before the router has been wired (cold-start race),
+  // stash the data and replay it as soon as setRouter is called.
+  Map<String, dynamic>? _pendingTap;
+
+  void setRouter(GoRouter router) {
+    _router = router;
+    final pending = _pendingTap;
+    if (pending != null) {
+      _pendingTap = null;
+      _routeForData(pending);
+    }
+  }
 
   DeviceTokenCallback? _onRegisterToken;
   DeviceTokenUnregisterCallback? _onUnregisterToken;
@@ -55,6 +68,17 @@ class NotificationService {
     _currentToken = null;
   }
 
+  Future<void> _handleLocalNotificationTap(NotificationResponse response) async {
+    final payload = response.payload;
+    if (payload == null || payload.isEmpty) return;
+    try {
+      final decoded = jsonDecode(payload) as Map<String, dynamic>;
+      _routeForData(decoded);
+    } catch (e) {
+      debugPrint('[Notif] failed to decode local notification payload: $e');
+    }
+  }
+
   Future<void> init() async {
     if (_initialized) return;
     tz_data.initializeTimeZones();
@@ -73,26 +97,36 @@ class NotificationService {
 
     await _plugin.initialize(
       const InitializationSettings(android: android, iOS: ios),
+      // Foreground FCMs are shown via _showHeadsUpNotification (below) which
+      // packs the FCM data into the local notification's `payload`. When the
+      // user taps the banner, this callback parses the payload and routes —
+      // without it, foreground taps are dead-ends.
+      onDidReceiveNotificationResponse: _handleLocalNotificationTap,
     );
     _initialized = true;
   }
 
   void _handleFcmForeground(RemoteMessage message) {
     // Show local notification for foreground FCM messages
-    final data = message.data;
-    final type = data['type'] as String?;
-    if (type == 'queue_called' || type == 'video_started') {
-      _showHeadsUpNotification(message);
-    }
+    _showHeadsUpNotification(message);
   }
 
   void _handleFcmTap(RemoteMessage message) {
-    final data = message.data;
+    _routeForData(Map<String, dynamic>.from(message.data));
+  }
+
+  /// Performs the actual routing decision. If the router isn't wired yet
+  /// (cold-start race), stash the data so [setRouter] can replay it.
+  void _routeForData(Map<String, dynamic> data) {
+    if (_router == null) {
+      _pendingTap = data;
+      return;
+    }
     final type = data['type'] as String?;
     if (type == 'queue_called') {
       final appointmentId = data['appointmentId'] as String?;
       if (appointmentId != null) {
-        _router?.goNamed(
+        _router!.goNamed(
           RouteNames.queueStatus,
           pathParameters: {'appointmentId': appointmentId},
         );
@@ -100,7 +134,7 @@ class NotificationService {
     } else if (type == 'video_started') {
       final consultationId = data['consultationId'] as String?;
       if (consultationId != null) {
-        _router?.goNamed(
+        _router!.goNamed(
           RouteNames.videoCall,
           pathParameters: {'id': consultationId},
         );
@@ -111,6 +145,9 @@ class NotificationService {
   Future<void> _showHeadsUpNotification(RemoteMessage message) async {
     final notification = message.notification;
     if (notification == null) return;
+    // Pack FCM data into the local notification's payload so the
+    // onDidReceiveNotificationResponse callback can route on tap.
+    final payload = jsonEncode(message.data);
     await _plugin.show(
       message.hashCode,
       notification.title,
@@ -129,6 +166,7 @@ class NotificationService {
           presentSound: true,
         ),
       ),
+      payload: payload,
     );
   }
 
