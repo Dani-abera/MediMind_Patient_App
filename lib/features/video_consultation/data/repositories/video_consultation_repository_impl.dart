@@ -50,4 +50,14 @@ class VideoConsultationRepositoryImpl implements VideoConsultationRepository {
       return Left(ServerFailure(message: e.message));
     }
   }
+
+  @override
+  Future<Either<Failure, List<Map<String, dynamic>>>> getChatHistory(String consultationId) async {
+    try {
+      final history = await _dataSource.getChatHistory(consultationId);
+      return Right(history);
+    } on ServerException catch (e) {
+      return Left(ServerFailure(message: e.message));
+    }
+  }
 }

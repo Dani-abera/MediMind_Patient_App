@@ -8,6 +8,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../../../core/storage/secure_storage.dart';
+import '../../../../core/di/service_locator.dart';
+import '../../domain/repositories/video_consultation_repository.dart';
 import '../../domain/entities/chat_message.dart';
 import '../../domain/usecases/get_consultation_usecase.dart';
 import '../../domain/usecases/join_consultation_usecase.dart';
@@ -53,6 +55,7 @@ class VideoCallBloc extends Bloc<VideoCallEvent, VideoCallState> {
   int? _remoteUid; // Track separately so a uid arriving before VideoCallActive
   // is emitted isn't dropped by the state-class race check.
   StreamSubscription<ChatMessage>? _chatSub;
+  Timer? _pollingTimer;
 
   RtcEngine? get engine => _engine;
   String? get channelId => _channelId;
@@ -187,6 +190,38 @@ class VideoCallBloc extends Bloc<VideoCallEvent, VideoCallState> {
         add(VideoCallChatMessageReceived(msg));
       });
 
+      _pollingTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
+        final current = state;
+        if (current is VideoCallActive && current.isChatOpen) {
+          final result = await sl<VideoConsultationRepository>().getChatHistory(event.consultationId);
+          result.fold(
+            (_) => null,
+            (history) {
+              if (isClosed) return;
+              final existingIds = current.messages.map((m) => m.id).toSet();
+              final newMessages = history
+                  .map((m) => ChatMessage(
+                        id: m['id']?.toString() ?? '',
+                        senderName: m['senderName']?.toString() ?? 'Unknown',
+                        content: m['content']?.toString() ?? '',
+                        sentAt: m['createdAt'] != null
+                            ? DateTime.parse(m['createdAt'])
+                            : DateTime.now(),
+                        isFromPatient: (m['senderType']?.toString() ?? '').toLowerCase() == 'patient',
+                      ))
+                  .where((m) => !existingIds.contains(m.id))
+                  .toList();
+
+              if (newMessages.isNotEmpty) {
+                for (final m in newMessages) {
+                  add(VideoCallChatMessageReceived(m));
+                }
+              }
+            },
+          );
+        }
+      });
+
       emit(
         VideoCallActive(
           consultation: consultation,
@@ -208,7 +243,7 @@ class VideoCallBloc extends Bloc<VideoCallEvent, VideoCallState> {
     final current = state;
     if (current is! VideoCallActive) return;
     final muted = !current.isMuted;
-    await _engine?.muteLocalAudioStream(muted);
+    await _engine?.enableLocalAudio(!muted);
     emit(current.copyWith(isMuted: muted));
   }
 
@@ -219,7 +254,7 @@ class VideoCallBloc extends Bloc<VideoCallEvent, VideoCallState> {
     final current = state;
     if (current is! VideoCallActive) return;
     final off = !current.isCameraOff;
-    await _engine?.muteLocalVideoStream(off);
+    await _engine?.enableLocalVideo(!off);
     emit(current.copyWith(isCameraOff: off));
   }
 
@@ -330,6 +365,8 @@ class VideoCallBloc extends Bloc<VideoCallEvent, VideoCallState> {
   }
 
   void _cleanup() {
+    _pollingTimer?.cancel();
+    _pollingTimer = null;
     _chatSub?.cancel();
     _chatSub = null;
     if (_channelId != null) {
@@ -345,6 +382,8 @@ class VideoCallBloc extends Bloc<VideoCallEvent, VideoCallState> {
 
   @override
   Future<void> close() async {
+    _pollingTimer?.cancel();
+    _pollingTimer = null;
     _chatSub?.cancel();
     _chatSub = null;
     if (_channelId != null) {

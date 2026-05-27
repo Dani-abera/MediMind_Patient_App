@@ -286,14 +286,19 @@ class _VideoCallPageState extends State<VideoCallPage> {
                 child: SizedBox(
                   width: 80.w,
                   height: 120.h,
-                  child: bloc.engine != null
+                  child: bloc.engine != null && !state.isCameraOff
                       ? AgoraVideoView(
                           controller: VideoViewController(
                             rtcEngine: bloc.engine!,
                             canvas: const VideoCanvas(uid: 0),
                           ),
                         )
-                      : Container(color: Colors.black54),
+                      : Container(
+                          color: Colors.black54,
+                          child: const Center(
+                            child: Icon(Icons.videocam_off, color: Colors.white54),
+                          ),
+                        ),
                 ),
               ),
             ),

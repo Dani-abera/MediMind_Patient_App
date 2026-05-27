@@ -16,6 +16,7 @@ abstract class VideoConsultationRemoteDataSource {
   Future<JoinResult> joinConsultation(String consultationId);
   Future<VideoConsultationModel> getConsultationByAppointmentId(String appointmentId);
   Future<void> sendMessage(String consultationId, String content);
+  Future<List<Map<String, dynamic>>> getChatHistory(String consultationId);
 }
 
 class VideoConsultationRemoteDataSourceImpl
@@ -85,5 +86,16 @@ class VideoConsultationRemoteDataSourceImpl
     final data = e.response?.data;
     if (data is Map<String, dynamic>) return data['message'] as String? ?? e.message ?? 'Server error';
     return e.message ?? 'Server error';
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getChatHistory(String consultationId) async {
+    try {
+      final response = await _dio.get('/consultations/$consultationId/chat');
+      final List<dynamic> data = response.data;
+      return data.cast<Map<String, dynamic>>();
+    } on DioException catch (e) {
+      throw ServerException(message: _extractMessage(e));
+    }
   }
 }

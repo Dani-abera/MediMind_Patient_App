@@ -8,4 +8,5 @@ abstract class VideoConsultationRepository {
   Future<Either<Failure, JoinResult>> joinConsultation(String consultationId);
   Future<Either<Failure, VideoConsultation>> getConsultationByAppointmentId(String appointmentId);
   Future<Either<Failure, void>> sendMessage(String consultationId, String content);
+  Future<Either<Failure, List<Map<String, dynamic>>>> getChatHistory(String consultationId);
 }
