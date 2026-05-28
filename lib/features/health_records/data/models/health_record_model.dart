@@ -18,12 +18,14 @@ class HealthRecordModel extends HealthRecord {
 
   factory HealthRecordModel.fromJson(Map<String, dynamic> json) =>
       HealthRecordModel(
-        id: json['_id'] as String? ?? json['id'] as String? ?? '',
-        recordedAt: DateTime.parse(json['recordedAt'] as String),
+        id: (json['recordId'] ?? json['_id'] ?? json['id'] ?? '') as String,
+        recordedAt: _parseRecordedAt(json),
         bloodPressureSystolic:
-            (json['bloodPressureSystolic'] as num?)?.toDouble(),
+            (json['bloodPressureSystolic'] ?? json['systolicBp'] as num?)
+                ?.toDouble(),
         bloodPressureDiastolic:
-            (json['bloodPressureDiastolic'] as num?)?.toDouble(),
+            (json['bloodPressureDiastolic'] ?? json['diastolicBp'] as num?)
+                ?.toDouble(),
         glucoseLevel: (json['glucoseLevel'] as num?)?.toDouble(),
         weight: (json['weight'] as num?)?.toDouble(),
         height: (json['height'] as num?)?.toDouble(),
@@ -34,18 +36,41 @@ class HealthRecordModel extends HealthRecord {
         notes: json['notes'] as String?,
       );
 
-  Map<String, dynamic> toJson() => {
-        if (bloodPressureSystolic != null)
-          'bloodPressureSystolic': bloodPressureSystolic,
-        if (bloodPressureDiastolic != null)
-          'bloodPressureDiastolic': bloodPressureDiastolic,
-        if (glucoseLevel != null) 'glucoseLevel': glucoseLevel,
-        if (weight != null) 'weight': weight,
-        if (height != null) 'height': height,
-        if (heartRate != null) 'heartRate': heartRate,
-        if (temperature != null) 'temperature': temperature,
-        if (oxygenSaturation != null) 'oxygenSaturation': oxygenSaturation,
-        if (respiratoryRate != null) 'respiratoryRate': respiratoryRate,
-        if (notes != null) 'notes': notes,
-      };
+  // The backend returns recordDate + recordTime separately, or createdAt.
+  static DateTime _parseRecordedAt(Map<String, dynamic> json) {
+    final raw = json['recordedAt'] as String?;
+    if (raw != null) return DateTime.parse(raw);
+
+    final createdAt = json['createdAt'] as String?;
+    if (createdAt != null) return DateTime.parse(createdAt);
+
+    final dateStr = json['recordDate'] as String?;
+    final timeStr = json['recordTime'] as String?;
+    if (dateStr != null && timeStr != null) {
+      return DateTime.tryParse('${dateStr}T$timeStr') ?? DateTime.now();
+    }
+    return DateTime.now();
+  }
+
+  Map<String, dynamic> toJson() {
+    final d = recordedAt;
+    final dateStr =
+        '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    return {
+      'recordDate': dateStr,
+      if (bloodPressureSystolic != null)
+        'systolicBp': bloodPressureSystolic!.round(),
+      if (bloodPressureDiastolic != null)
+        'diastolicBp': bloodPressureDiastolic!.round(),
+      if (glucoseLevel != null) 'glucoseLevel': glucoseLevel,
+      if (weight != null) 'weight': weight,
+      if (height != null) 'height': height,
+      if (heartRate != null) 'heartRate': heartRate!.round(),
+      if (temperature != null) 'temperature': temperature,
+      if (oxygenSaturation != null)
+        'oxygenSaturation': oxygenSaturation!.round(),
+      if (respiratoryRate != null) 'respiratoryRate': respiratoryRate!.round(),
+      if (notes != null) 'notes': notes,
+    };
+  }
 }

@@ -13,4 +13,6 @@ class StorageKeys {
   static const String lastSyncedAt = 'last_synced_at';
   static const String notificationPreferences = 'notification_preferences';
   static const String tutorialCompleted = 'tutorial_completed';
+  static const String healthSetupCompleted = 'health_setup_completed';
+  static const String profileSetupCompleted = 'profile_setup_completed';
 }

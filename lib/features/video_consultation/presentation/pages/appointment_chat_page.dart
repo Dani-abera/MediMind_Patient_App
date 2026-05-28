@@ -54,12 +54,16 @@ class _AppointmentChatPageState extends State<AppointmentChatPage> {
       ),
     );
 
-    await _chatService.connect(
-      appId: appId,
-      userId: userId,
-      rtmToken: rtmToken,
-      consultationId: widget.consultationId,
-    );
+    try {
+      await _chatService.connect(
+        appId: appId,
+        userId: userId,
+        rtmToken: rtmToken,
+        consultationId: widget.consultationId,
+      );
+    } catch (e) {
+      debugPrint('[Chat] RTM connection failed: $e. Falling back to REST polling.');
+    }
 
     _sub = _chatService.onMessage.listen((msg) {
       if (mounted) {

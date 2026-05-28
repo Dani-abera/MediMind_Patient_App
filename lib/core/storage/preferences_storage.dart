@@ -55,4 +55,16 @@ class PreferencesStorage {
 
   Future<void> setTutorialCompleted(bool value) =>
       _prefs.setBool(StorageKeys.tutorialCompleted, value);
+
+  bool isHealthSetupComplete(String userId) =>
+      _prefs.getBool('${StorageKeys.healthSetupCompleted}_$userId') ?? false;
+
+  Future<void> setHealthSetupComplete(String userId) =>
+      _prefs.setBool('${StorageKeys.healthSetupCompleted}_$userId', true);
+
+  bool isProfileSetupComplete(String userId) =>
+      _prefs.getBool('${StorageKeys.profileSetupCompleted}_$userId') ?? false;
+
+  Future<void> setProfileSetupComplete(String userId) =>
+      _prefs.setBool('${StorageKeys.profileSetupCompleted}_$userId', true);
 }

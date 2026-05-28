@@ -37,11 +37,13 @@ class MedicationReminderModel extends MedicationReminder {
         dosage: json['dosage'] as String,
         frequency:
             _freqMap[json['frequency'] as String?] ?? ReminderFrequency.once,
-        times: (json['times'] as List<dynamic>? ?? [])
+        times: (json['reminderTimes'] as List<dynamic>? ?? [])
             .map((t) => t as String)
             .toList(),
         isActive: json['isActive'] as bool? ?? true,
-        startDate: DateTime.parse(json['startDate'] as String),
+        startDate: json['startDate'] != null
+            ? DateTime.parse(json['startDate'] as String)
+            : DateTime.now(),
         endDate: json['endDate'] != null
             ? DateTime.parse(json['endDate'] as String)
             : null,
@@ -55,7 +57,7 @@ class MedicationReminderModel extends MedicationReminder {
         'medicationName': medicationName,
         'dosage': dosage,
         'frequency': _freqReverseMap[frequency],
-        'times': times,
+        'reminderTimes': times,
         'isActive': isActive,
         'startDate': startDate.toIso8601String(),
         if (endDate != null) 'endDate': endDate!.toIso8601String(),

@@ -37,7 +37,7 @@ class MedicationRemindersRepositoryImpl
             'medicationName': medicationName,
             'dosage': dosage,
             'frequency': _freqReverseMap[frequency],
-            'times': times,
+            'reminderTimes': times,
             'startDate': startDate.toIso8601String(),
             if (endDate != null) 'endDate': endDate.toIso8601String(),
             if (notes != null) 'notes': notes,

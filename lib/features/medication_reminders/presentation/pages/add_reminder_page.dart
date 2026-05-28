@@ -4,6 +4,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/widgets/dialogs/exact_alarm_permission_dialog.dart';
 import '../../domain/entities/medication_reminder.dart';
 import '../bloc/medication_reminders_bloc.dart';
 import '../bloc/medication_reminders_event.dart';
@@ -34,6 +35,14 @@ class _AddReminderPageState extends State<AddReminderPage> {
     (ReminderFrequency.fourTimes, 'Four times daily', 4),
     (ReminderFrequency.custom, 'Custom', 1),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      showExactAlarmPermissionDialogIfNeeded(context);
+    });
+  }
 
   @override
   void dispose() {

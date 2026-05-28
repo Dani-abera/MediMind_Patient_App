@@ -1,9 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/services.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:go_router/go_router.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 import '../routing/route_names.dart';
@@ -81,7 +84,17 @@ class NotificationService {
 
   Future<void> init() async {
     if (_initialized) return;
+
+    // Load timezone DB and pin tz.local to the device's actual timezone so
+    // zonedSchedule fires at the right local time (not UTC).
     tz_data.initializeTimeZones();
+    try {
+      final tzInfo = await FlutterTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(tzInfo.identifier));
+    } catch (_) {
+      // Fallback to Addis Ababa (UTC+3) if native call fails.
+      tz.setLocalLocation(tz.getLocation('Africa/Addis_Ababa'));
+    }
 
     FirebaseMessaging.onMessage.listen(_handleFcmForeground);
     FirebaseMessaging.onMessageOpenedApp.listen(_handleFcmTap);
@@ -103,6 +116,13 @@ class NotificationService {
       // without it, foreground taps are dead-ends.
       onDidReceiveNotificationResponse: _handleLocalNotificationTap,
     );
+
+    // On Android 13+ (POST_NOTIFICATIONS is a runtime permission). The FCM
+    // requestPermission() above covers iOS; this covers the Android side.
+    if (Platform.isAndroid) {
+      await Permission.notification.request();
+    }
+
     _initialized = true;
   }
 
@@ -170,6 +190,23 @@ class NotificationService {
     );
   }
 
+  Future<bool> canScheduleExactNotifications() async {
+    if (!Platform.isAndroid) return true;
+    if (!_initialized) await init();
+    final androidPlugin = _plugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+    return await androidPlugin?.canScheduleExactNotifications() ?? false;
+  }
+
+  Future<void> requestExactAlarmsPermission() async {
+    if (!Platform.isAndroid) return;
+    final androidPlugin = _plugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+    await androidPlugin?.requestExactAlarmsPermission();
+  }
+
   Future<void> scheduleReminder({
     required int id,
     required String medicationName,
@@ -193,26 +230,54 @@ class NotificationService {
       scheduled = scheduled.add(const Duration(days: 1));
     }
 
-    await _plugin.zonedSchedule(
-      id,
-      'Time for $medicationName',
-      '$dosage — in 15 minutes',
-      scheduled,
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'medication_reminders',
-          'Medication Reminders',
-          channelDescription: 'Daily medication dose reminders',
-          importance: Importance.high,
-          priority: Priority.high,
+    try {
+      await _plugin.zonedSchedule(
+        id,
+        'Time for $medicationName',
+        '$dosage — in 15 minutes',
+        scheduled,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'medication_reminders',
+            'Medication Reminders',
+            channelDescription: 'Daily medication dose reminders',
+            importance: Importance.high,
+            priority: Priority.high,
+          ),
+          iOS: DarwinNotificationDetails(),
         ),
-        iOS: DarwinNotificationDetails(),
-      ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents: DateTimeComponents.time,
-    );
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        matchDateTimeComponents: DateTimeComponents.time,
+      );
+    } on PlatformException catch (e) {
+      if (e.code == 'exact_alarms_not_permitted') {
+        // SCHEDULE_EXACT_ALARM not yet granted; fall back to inexact.
+        await _plugin.zonedSchedule(
+          id,
+          'Time for $medicationName',
+          '$dosage — in 15 minutes',
+          scheduled,
+          const NotificationDetails(
+            android: AndroidNotificationDetails(
+              'medication_reminders',
+              'Medication Reminders',
+              channelDescription: 'Daily medication dose reminders',
+              importance: Importance.high,
+              priority: Priority.high,
+            ),
+            iOS: DarwinNotificationDetails(),
+          ),
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+          matchDateTimeComponents: DateTimeComponents.time,
+        );
+      } else {
+        rethrow;
+      }
+    }
   }
 
   Future<void> cancelReminder(int id) =>

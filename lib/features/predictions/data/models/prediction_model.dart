@@ -7,15 +7,25 @@ class DiseaseRiskModel extends DiseaseRisk {
     super.contributingFactors,
   });
 
-  factory DiseaseRiskModel.fromJson(Map<String, dynamic> json) {
-    final score = (json['riskScore'] as num).toDouble();
+  factory DiseaseRiskModel.fromBackend({
+    required double riskScore,
+    required String category,
+    required List<String> factors,
+  }) {
     return DiseaseRiskModel(
-      riskScore: score,
-      riskLevel: Prediction.levelFromScore(score),
-      contributingFactors: (json['contributingFactors'] as List<dynamic>? ?? [])
-          .map((f) => f as String)
-          .toList(),
+      riskScore: riskScore,
+      riskLevel: _levelFromCategory(category),
+      contributingFactors: factors,
     );
+  }
+
+  static RiskLevel _levelFromCategory(String category) {
+    return switch (category.toLowerCase()) {
+      'low' => RiskLevel.low,
+      'medium' || 'moderate' => RiskLevel.medium,
+      'high' => RiskLevel.high,
+      _ => RiskLevel.low,
+    };
   }
 }
 
@@ -34,25 +44,46 @@ class PredictionModel extends Prediction {
 
   factory PredictionModel.fromJson(Map<String, dynamic> json) {
     final dataPoints = json['dataPointsUsed'] as int? ?? 0;
-    final confidence = dataPoints == 0
-        ? 'low'
-        : dataPoints < 7
-            ? 'low'
-            : dataPoints < 30
-                ? 'medium'
-                : 'high';
+
+    final factors = (json['contributingFactors'] as Map<String, dynamic>?) ?? {};
+    List<String> extractFactors(String key) =>
+        (factors[key] as List<dynamic>? ?? []).map((f) => f as String).toList();
+
+    // "Low Confidence" / "Medium Confidence" / "High Confidence" → 'low'/'medium'/'high'
+    // Falls back to deriving from dataPointsUsed for summary DTOs that omit this field.
+    final desc = (json['confidenceLevelDescription'] as String? ?? '').toLowerCase();
+    final confidenceLevel = desc.contains('high')
+        ? 'high'
+        : desc.contains('medium')
+            ? 'medium'
+            : desc.contains('low')
+                ? 'low'
+                : dataPoints >= 30
+                    ? 'high'
+                    : dataPoints >= 7
+                        ? 'medium'
+                        : 'low';
 
     return PredictionModel(
-      id: json['_id'] as String? ?? json['id'] as String? ?? '',
+      id: (json['predictionId'] ?? json['id'] ?? json['_id'] ?? '').toString(),
       createdAt: DateTime.parse(json['createdAt'] as String),
       dataPointsUsed: dataPoints,
-      confidenceLevel: json['confidenceLevel'] as String? ?? confidence,
-      diabetes: DiseaseRiskModel.fromJson(
-          json['diabetes'] as Map<String, dynamic>),
-      hypertension: DiseaseRiskModel.fromJson(
-          json['hypertension'] as Map<String, dynamic>),
-      cardiovascular: DiseaseRiskModel.fromJson(
-          json['cardiovascular'] as Map<String, dynamic>),
+      confidenceLevel: confidenceLevel,
+      diabetes: DiseaseRiskModel.fromBackend(
+        riskScore: (json['diabetesRisk'] as num? ?? 0).toDouble(),
+        category: json['diabetesCategory'] as String? ?? 'Low',
+        factors: extractFactors('Diabetes'),
+      ),
+      hypertension: DiseaseRiskModel.fromBackend(
+        riskScore: (json['hypertensionRisk'] as num? ?? 0).toDouble(),
+        category: json['hypertensionCategory'] as String? ?? 'Low',
+        factors: extractFactors('Hypertension'),
+      ),
+      cardiovascular: DiseaseRiskModel.fromBackend(
+        riskScore: (json['cvdRisk'] as num? ?? 0).toDouble(),
+        category: json['cvdCategory'] as String? ?? 'Low',
+        factors: extractFactors('Cardiovascular'),
+      ),
       recommendations: json['recommendations'] as String?,
       modelVersion: json['modelVersion'] as String?,
     );

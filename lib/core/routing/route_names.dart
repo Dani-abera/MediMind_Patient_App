@@ -7,6 +7,7 @@ class RouteNames {
   static const String phoneEntry = 'phoneEntry';
   static const String otpVerification = 'otpVerification';
   static const String profileCompletion = 'profileCompletion';
+  static const String healthSetup = 'healthSetup';
 
   // Main tabs
   static const String home = 'home';

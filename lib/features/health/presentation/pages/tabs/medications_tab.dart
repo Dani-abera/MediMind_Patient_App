@@ -124,16 +124,15 @@ class _ReminderCard extends StatelessWidget {
       ),
       confirmDismiss: (_) => showDialog<bool>(
         context: context,
-        builder: (_) => AlertDialog(
+        builder: (ctx) => AlertDialog(
           title: const Text('Delete Reminder'),
-          content:
-              Text('Remove ${reminder.medicationName}?'),
+          content: Text('Remove ${reminder.medicationName}?'),
           actions: [
             TextButton(
-                onPressed: () => Navigator.pop(context, false),
+                onPressed: () => Navigator.pop(ctx, false),
                 child: const Text('Cancel')),
             TextButton(
-                onPressed: () => Navigator.pop(context, true),
+                onPressed: () => Navigator.pop(ctx, true),
                 child: Text('Delete',
                     style: TextStyle(color: AppColors.danger))),
           ],
@@ -188,6 +187,36 @@ class _ReminderCard extends StatelessWidget {
                 onChanged: (_) => context
                     .read<MedicationRemindersBloc>()
                     .add(MedicationReminderToggled(reminder.id)),
+              ),
+              IconButton(
+                icon: Icon(Icons.delete_outline,
+                    color: AppColors.danger, size: 20.r),
+                tooltip: 'Delete',
+                onPressed: () async {
+                  final confirmed = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text('Delete Reminder'),
+                      content: Text('Remove ${reminder.medicationName}?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          child: const Text('Cancel'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          child: Text('Delete',
+                              style: TextStyle(color: AppColors.danger)),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (confirmed == true && context.mounted) {
+                    context
+                        .read<MedicationRemindersBloc>()
+                        .add(MedicationReminderDeleted(reminder.id));
+                  }
+                },
               ),
             ],
           ),

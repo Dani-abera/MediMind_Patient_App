@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/error/exceptions.dart';
 import '../../data/datasources/profile_remote_datasource.dart';
 import 'profile_event.dart';
 import 'profile_state.dart';
@@ -15,6 +16,10 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
 
   final ProfileRemoteDataSource _ds;
 
+  // Extracts a human-readable message from any exception type.
+  static String _msg(Object e) =>
+      e is ServerException ? e.message : e.toString();
+
   Future<void> _onRequested(
     ProfileRequested event,
     Emitter<ProfileState> emit,
@@ -24,7 +29,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
       final user = await _ds.getProfile();
       emit(ProfileLoaded(user));
     } catch (e) {
-      emit(ProfileFailure(e.toString()));
+      emit(ProfileFailure(_msg(e)));
     }
   }
 
@@ -33,17 +38,21 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     Emitter<ProfileState> emit,
   ) async {
     final current = state;
-    final currentUser =
-        current is ProfileLoaded ? current.user : (current is ProfileSaved ? current.user : null);
+    final currentUser = current is ProfileLoaded
+        ? current.user
+        : (current is ProfileSaved ? current.user : null);
     if (currentUser == null) return;
 
     emit(ProfileSaving(currentUser));
     try {
       final data = <String, dynamic>{};
+      // Backend PatchPatientProfileApiRequest fields: fullName, dateOfBirth,
+      // gender, address, medicalHistory, allergies, bloodType.
+      // NOTE: email is NOT in the patch DTO — omit it.
       if (event.fullName != null) data['fullName'] = event.fullName;
-      if (event.email != null) data['email'] = event.email;
       if (event.dateOfBirth != null) {
-        data['dateOfBirth'] = event.dateOfBirth!.toIso8601String();
+        data['dateOfBirth'] =
+            event.dateOfBirth!.toIso8601String().substring(0, 10);
       }
       if (event.gender != null) data['gender'] = event.gender;
 
@@ -52,7 +61,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
       emit(ProfileLoaded(updated));
     } catch (e) {
       emit(ProfileLoaded(currentUser));
-      emit(ProfileFailure(e.toString()));
+      emit(ProfileFailure(_msg(e)));
     }
   }
 
@@ -61,8 +70,9 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     Emitter<ProfileState> emit,
   ) async {
     final current = state;
-    final currentUser =
-        current is ProfileLoaded ? current.user : (current is ProfileSaved ? current.user : null);
+    final currentUser = current is ProfileLoaded
+        ? current.user
+        : (current is ProfileSaved ? current.user : null);
     if (currentUser == null) return;
 
     emit(ProfileSaving(currentUser));
@@ -73,7 +83,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
       emit(ProfileLoaded(updated));
     } catch (e) {
       emit(ProfileLoaded(currentUser));
-      emit(ProfileFailure(e.toString()));
+      emit(ProfileFailure(_msg(e)));
     }
   }
 
@@ -82,8 +92,9 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     Emitter<ProfileState> emit,
   ) async {
     final current = state;
-    final currentUser =
-        current is ProfileLoaded ? current.user : (current is ProfileSaved ? current.user : null);
+    final currentUser = current is ProfileLoaded
+        ? current.user
+        : (current is ProfileSaved ? current.user : null);
     if (currentUser == null) return;
 
     emit(ProfileSaving(currentUser));
@@ -94,7 +105,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
       emit(ProfileLoaded(updated));
     } catch (e) {
       emit(ProfileLoaded(currentUser));
-      emit(ProfileFailure(e.toString()));
+      emit(ProfileFailure(_msg(e)));
     }
   }
 }

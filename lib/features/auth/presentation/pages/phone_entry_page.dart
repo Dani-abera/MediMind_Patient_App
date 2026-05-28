@@ -10,7 +10,6 @@ import '../bloc/otp/otp_bloc.dart';
 import '../bloc/otp/otp_event.dart';
 import '../bloc/otp/otp_state.dart';
 import '../widgets/phone_input_field.dart';
-import 'register_bottom_sheet.dart';
 
 class PhoneEntryPage extends StatefulWidget {
   const PhoneEntryPage({super.key});
@@ -36,18 +35,6 @@ class _PhoneEntryPageState extends State<PhoneEntryPage> {
     if (_formKey.currentState?.validate() ?? false) {
       context.read<OtpBloc>().add(OtpRequested(_fullPhoneNumber));
     }
-  }
-
-  void _showRegisterSheet() {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => BlocProvider.value(
-        value: context.read<OtpBloc>(),
-        child: const RegisterBottomSheet(),
-      ),
-    );
   }
 
   @override
@@ -98,18 +85,6 @@ class _PhoneEntryPageState extends State<PhoneEntryPage> {
                   ),
                   SizedBox(height: 32.h),
                   PhoneInputField(controller: _phoneController),
-                  SizedBox(height: 12.h),
-                  Center(
-                    child: TextButton(
-                      onPressed: _showRegisterSheet,
-                      child: Text(
-                        "Don't have an account? Create account",
-                        style: AppTypography.body.copyWith(
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ),
-                  ),
                   const Spacer(),
                   BlocBuilder<OtpBloc, OtpState>(
                     builder: (context, state) {

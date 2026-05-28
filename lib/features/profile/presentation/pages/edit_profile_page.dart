@@ -71,9 +71,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
     if (!_formKey.currentState!.validate()) return;
     context.read<ProfileBloc>().add(ProfileUpdated(
           fullName: _nameCtrl.text.trim(),
-          email: _emailCtrl.text.trim().isEmpty
-              ? null
-              : _emailCtrl.text.trim(),
           dateOfBirth: _dateOfBirth,
           gender: _gender,
         ));
@@ -84,7 +81,16 @@ class _EditProfilePageState extends State<EditProfilePage> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text('Edit Profile', style: AppTypography.title),
+        title: BlocBuilder<ProfileBloc, ProfileState>(
+          builder: (context, state) {
+            final isSetupMode = _dateOfBirth == null &&
+                (_gender == null || _gender!.isEmpty);
+            return Text(
+              isSetupMode ? 'Set up your profile' : 'Edit Profile',
+              style: AppTypography.title,
+            );
+          },
+        ),
         backgroundColor: AppColors.white,
         foregroundColor: AppColors.neutral900,
         elevation: 0,
@@ -92,7 +98,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       body: BlocConsumer<ProfileBloc, ProfileState>(
         listener: (context, state) {
           if (state is ProfileLoaded) {
-            _populateFrom(state.user);
+            setState(() => _populateFrom(state.user));
           }
           if (state is ProfileSaved) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -115,6 +121,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
           if (user == null && state is ProfileLoading) {
             return const Center(child: CircularProgressIndicator());
           }
+
+          // "Setup mode": profile has only default values (no DOB or gender set).
+          final isSetupMode =
+              _dateOfBirth == null && (_gender == null || _gender!.isEmpty);
 
           return Stack(
             children: [
@@ -178,7 +188,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                   child: CircularProgressIndicator(
                                       strokeWidth: 2,
                                       color: AppColors.white))
-                              : Text('Save Changes',
+                              : Text(
+                                  isSetupMode ? 'Get Started' : 'Save Changes',
                                   style: AppTypography.subtitle.copyWith(
                                       color: AppColors.white)),
                         ),

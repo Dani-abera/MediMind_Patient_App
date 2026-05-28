@@ -17,7 +17,7 @@ class VitalsSummaryCard extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 24.w),
       child: AppCard(
-        onTap: () => context.pushNamed(RouteNames.healthRecords),
+        onTap: () => context.goNamed(RouteNames.health),
         padding: EdgeInsets.all(16.r),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

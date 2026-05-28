@@ -64,14 +64,18 @@ class MedicationRemindersBloc
       (failure) async =>
           emit(MedicationRemindersFailure(failure.message)),
       (reminder) async {
-        // Schedule local notifications 15 min before each dose
-        final baseId = reminder.id.hashCode.abs() % 100000;
-        await _notifications.scheduleAllTimes(
-          baseId: baseId,
-          medicationName: reminder.medicationName,
-          dosage: reminder.dosage,
-          times: reminder.times,
-        );
+        // Schedule local notifications 15 min before each dose.
+        // Errors here are non-fatal — the reminder is saved server-side;
+        // local scheduling failure just means no local alarm.
+        try {
+          final baseId = reminder.id.hashCode.abs() % 100000;
+          await _notifications.scheduleAllTimes(
+            baseId: baseId,
+            medicationName: reminder.medicationName,
+            dosage: reminder.dosage,
+            times: reminder.times,
+          );
+        } catch (_) {}
         add(const MedicationRemindersRequested());
         emit(MedicationReminderActionSuccess(
           reminders: _currentReminders,

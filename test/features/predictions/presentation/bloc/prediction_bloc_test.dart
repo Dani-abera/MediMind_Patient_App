@@ -2,11 +2,11 @@ import 'package:bloc_test/bloc_test.dart';
 import 'package:dartz/dartz.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:medimind/core/error/failures.dart';
-import 'package:medimind/features/health_records/domain/usecases/get_record_count_usecase.dart';
-import 'package:medimind/features/health_records/domain/entities/record_count.dart';
 import 'package:medimind/features/predictions/domain/entities/prediction.dart';
+import 'package:medimind/features/predictions/domain/entities/prediction_status.dart';
 import 'package:medimind/features/predictions/domain/usecases/get_latest_prediction_usecase.dart';
 import 'package:medimind/features/predictions/domain/usecases/get_prediction_by_id_usecase.dart';
+import 'package:medimind/features/predictions/domain/usecases/get_prediction_status_usecase.dart';
 import 'package:medimind/features/predictions/domain/usecases/get_predictions_usecase.dart';
 import 'package:medimind/features/predictions/domain/usecases/request_prediction_usecase.dart';
 import 'package:medimind/features/predictions/presentation/bloc/prediction/prediction_bloc.dart';
@@ -25,7 +25,8 @@ class MockGetLatestPredictionUsecase extends Mock
 class MockGetPredictionByIdUsecase extends Mock
     implements GetPredictionByIdUsecase {}
 
-class MockGetRecordCountUsecase extends Mock implements GetRecordCountUsecase {}
+class MockGetPredictionStatusUsecase extends Mock
+    implements GetPredictionStatusUsecase {}
 
 final _diseaseRisk = DiseaseRisk(
   riskScore: 20,
@@ -43,19 +44,33 @@ final _prediction = Prediction(
   cardiovascular: _diseaseRisk,
 );
 
+const _statusCanRequest = PredictionStatus(
+  canRequest: true,
+  healthRecordCount: 15,
+  confidenceLevel: 'Medium',
+  message: 'You have 15 records. Keep logging.',
+);
+
+const _statusCannotRequest = PredictionStatus(
+  canRequest: false,
+  healthRecordCount: 0,
+  confidenceLevel: 'Low',
+  message: 'Start logging your vital signs to unlock AI health predictions.',
+);
+
 void main() {
   late MockRequestPredictionUsecase mockRequest;
   late MockGetPredictionsUsecase mockGetAll;
   late MockGetLatestPredictionUsecase mockLatest;
   late MockGetPredictionByIdUsecase mockById;
-  late MockGetRecordCountUsecase mockCount;
+  late MockGetPredictionStatusUsecase mockStatus;
 
   setUp(() {
     mockRequest = MockRequestPredictionUsecase();
     mockGetAll = MockGetPredictionsUsecase();
     mockLatest = MockGetLatestPredictionUsecase();
     mockById = MockGetPredictionByIdUsecase();
-    mockCount = MockGetRecordCountUsecase();
+    mockStatus = MockGetPredictionStatusUsecase();
   });
 
   PredictionBloc build() => PredictionBloc(
@@ -63,7 +78,7 @@ void main() {
         getPredictions: mockGetAll,
         getLatestPrediction: mockLatest,
         getPredictionById: mockById,
-        getRecordCount: mockCount,
+        getPredictionStatus: mockStatus,
       );
 
   group('PredictionsRequested', () {
@@ -96,30 +111,36 @@ void main() {
       act: (bloc) => bloc.add(const PredictionsRequested()),
       expect: () => [
         const PredictionsLoading(),
-        const PredictionFailure('Failed'),
+        const PredictionFailure('Something went wrong. Please try again.'),
       ],
     );
   });
 
-  group('PredictionRequested — confidence thresholds', () {
+  group('PredictionRequested — status gating', () {
     blocTest<PredictionBloc, PredictionState>(
-      'emits InsufficientData when 0 records',
+      'emits InsufficientData when status.canRequest is false',
       build: build,
       setUp: () {
-        when(() => mockCount()).thenAnswer((_) async => const Right(RecordCount(count: 0, canRequestPrediction: false)));
+        when(() => mockStatus())
+            .thenAnswer((_) async => const Right(_statusCannotRequest));
       },
       act: (bloc) => bloc.add(const PredictionRequested()),
       expect: () => [
-        const PredictionInsufficientData(dataPointsUsed: 0, canRequestPrediction: false),
+        PredictionInsufficientData(
+          dataPointsUsed: _statusCannotRequest.healthRecordCount,
+          canRequestPrediction: false,
+          message: _statusCannotRequest.message,
+        ),
       ],
       verify: (_) => verifyNever(() => mockRequest()),
     );
 
     blocTest<PredictionBloc, PredictionState>(
-      'runs prediction when 1–6 records (low confidence)',
+      'proceeds with prediction when status check fails (falls back to backend validation)',
       build: build,
       setUp: () {
-        when(() => mockCount()).thenAnswer((_) async => const Right(RecordCount(count: 3, canRequestPrediction: true)));
+        when(() => mockStatus()).thenAnswer(
+            (_) async => const Left(NetworkFailure()));
         when(() => mockRequest())
             .thenAnswer((_) async => Right(_prediction));
       },
@@ -131,10 +152,11 @@ void main() {
     );
 
     blocTest<PredictionBloc, PredictionState>(
-      'runs prediction when 7–29 records (medium confidence)',
+      'runs prediction when status.canRequest is true',
       build: build,
       setUp: () {
-        when(() => mockCount()).thenAnswer((_) async => const Right(RecordCount(count: 15, canRequestPrediction: true)));
+        when(() => mockStatus())
+            .thenAnswer((_) async => const Right(_statusCanRequest));
         when(() => mockRequest())
             .thenAnswer((_) async => Right(_prediction));
       },
@@ -146,32 +168,36 @@ void main() {
     );
 
     blocTest<PredictionBloc, PredictionState>(
-      'runs prediction when 30+ records (high confidence)',
+      'emits user-friendly failure on network error',
       build: build,
       setUp: () {
-        when(() => mockCount()).thenAnswer((_) async => const Right(RecordCount(count: 45, canRequestPrediction: true)));
-        when(() => mockRequest())
-            .thenAnswer((_) async => Right(_prediction));
-      },
-      act: (bloc) => bloc.add(const PredictionRequested()),
-      expect: () => [
-        const PredictionProcessing(),
-        PredictionSuccess(_prediction),
-      ],
-    );
-
-    blocTest<PredictionBloc, PredictionState>(
-      'emits failure on request error',
-      build: build,
-      setUp: () {
-        when(() => mockCount()).thenAnswer((_) async => const Right(RecordCount(count: 10, canRequestPrediction: true)));
+        when(() => mockStatus())
+            .thenAnswer((_) async => const Right(_statusCanRequest));
         when(() => mockRequest()).thenAnswer((_) async =>
-            const Left(ServerFailure(message: 'Model unavailable')));
+            const Left(NetworkFailure()));
       },
       act: (bloc) => bloc.add(const PredictionRequested()),
       expect: () => [
         const PredictionProcessing(),
-        const PredictionFailure('Model unavailable'),
+        const PredictionFailure(
+            'No internet connection. Please check your connection and try again.'),
+      ],
+    );
+
+    blocTest<PredictionBloc, PredictionState>(
+      'emits user-friendly failure on 503 error',
+      build: build,
+      setUp: () {
+        when(() => mockStatus())
+            .thenAnswer((_) async => const Right(_statusCanRequest));
+        when(() => mockRequest()).thenAnswer((_) async =>
+            const Left(ServerFailure(message: 'unavailable', code: 503)));
+      },
+      act: (bloc) => bloc.add(const PredictionRequested()),
+      expect: () => [
+        const PredictionProcessing(),
+        const PredictionFailure(
+            'Our AI is temporarily unavailable. Please try again in a few minutes.'),
       ],
     );
   });

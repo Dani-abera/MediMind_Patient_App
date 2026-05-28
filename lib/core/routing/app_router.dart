@@ -16,6 +16,7 @@ import '../../features/auth/presentation/bloc/register/register_bloc.dart';
 import '../../features/auth/presentation/pages/onboarding_page.dart';
 import '../../features/auth/presentation/pages/otp_verification_page.dart';
 import '../../features/auth/presentation/pages/phone_entry_page.dart';
+import '../../features/auth/presentation/pages/health_setup_page.dart';
 import '../../features/auth/presentation/pages/profile_completion_page.dart';
 import '../../features/auth/presentation/pages/splash_page.dart';
 import '../../features/book/presentation/pages/book_page.dart';
@@ -68,8 +69,10 @@ import '../../features/reviews/presentation/bloc/review_bloc.dart';
 import '../../features/reviews/presentation/pages/leave_review_page.dart';
 import '../../features/settings/presentation/bloc/settings_bloc.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
+import '../../features/predictions/domain/entities/prediction.dart';
 import '../../features/predictions/domain/usecases/get_latest_prediction_usecase.dart';
 import '../../features/predictions/domain/usecases/get_prediction_by_id_usecase.dart';
+import '../../features/predictions/domain/usecases/get_prediction_status_usecase.dart';
 import '../../features/predictions/domain/usecases/get_predictions_usecase.dart';
 import '../../features/predictions/domain/usecases/request_prediction_usecase.dart';
 import '../../features/predictions/presentation/bloc/prediction/prediction_bloc.dart';
@@ -89,6 +92,7 @@ import '../../features/video_consultation/presentation/bloc/video_call_bloc.dart
 import '../../features/video_consultation/presentation/pages/video_call_page.dart';
 import '../../features/video_consultation/presentation/pages/appointment_chat_page.dart';
 import '../../features/video_consultation/services/agora_chat_service.dart';
+import '../storage/preferences_storage.dart';
 import '../storage/secure_storage.dart';
 import '../di/service_locator.dart';
 import '../services/analytics_service.dart';
@@ -158,15 +162,27 @@ class AppRouter {
       GoRoute(
         name: RouteNames.profileCompletion,
         path: '/auth/profile-completion',
-        pageBuilder: (_, state) {
-          final phone = state.extra as String? ?? '';
-          return MaterialPage(
-            child: BlocProvider(
-              create: (_) => sl<RegisterBloc>(),
-              child: ProfileCompletionPage(phoneNumber: phone),
+        pageBuilder: (_, __) => MaterialPage(
+          child: BlocProvider(
+            create: (_) => sl<ProfileBloc>(),
+            child: const ProfileCompletionPage(),
+          ),
+        ),
+      ),
+
+      // ── Health Setup ──────────────────────────────────────────────────
+      GoRoute(
+        name: RouteNames.healthSetup,
+        path: '/auth/health-setup',
+        builder: (_, __) => MultiBlocProvider(
+          providers: [
+            BlocProvider(create: (_) => sl<MedicalHistoryBloc>()),
+            BlocProvider(
+              create: (_) => VitalsFormBloc(logVitals: sl<LogVitalsUsecase>()),
             ),
-          );
-        },
+          ],
+          child: const HealthSetupPage(),
+        ),
       ),
 
       // ── Notifications ────────────────────────────────────────────────
@@ -485,7 +501,7 @@ class AppRouter {
                         getPredictions: sl<GetPredictionsUsecase>(),
                         getLatestPrediction: sl<GetLatestPredictionUsecase>(),
                         getPredictionById: sl<GetPredictionByIdUsecase>(),
-                        getRecordCount: sl<GetRecordCountUsecase>(),
+                        getPredictionStatus: sl<GetPredictionStatusUsecase>(),
                       )..add(const PredictionsRequested()),
                     ),
                     BlocProvider<MedicationRemindersBloc>(
@@ -524,6 +540,7 @@ class AppRouter {
                     path: '${RouteNames.predictionDetail}/:id',
                     builder: (_, state) => PredictionDetailPage(
                       predictionId: state.pathParameters['id']!,
+                      prediction: state.extra as Prediction?,
                     ),
                   ),
                   GoRoute(
@@ -596,6 +613,28 @@ class AppRouter {
 
     final authState = context.read<AuthBloc>().state;
     if (authState is Unauthenticated) return '/auth/phone';
+
+    if (authState is Authenticated) {
+      final prefs = sl<PreferencesStorage>();
+      final userId = authState.user.patientId;
+      final loc = state.matchedLocation;
+
+      // Gate 1: profile completion (backend flag OR local flag)
+      final profileDone = authState.user.isProfileComplete ||
+          prefs.isProfileSetupComplete(userId);
+      if (!profileDone && loc != '/auth/profile-completion') {
+        return '/auth/profile-completion';
+      }
+
+      // Gate 2: health setup (local flag)
+      if (profileDone) {
+        final healthDone = prefs.isHealthSetupComplete(userId);
+        if (!healthDone && loc != '/auth/health-setup') {
+          return '/auth/health-setup';
+        }
+      }
+    }
+
     return null;
   }
 }

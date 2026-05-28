@@ -5,6 +5,7 @@ import 'data/repositories/predictions_repository_impl.dart';
 import 'domain/repositories/predictions_repository.dart';
 import 'domain/usecases/get_latest_prediction_usecase.dart';
 import 'domain/usecases/get_prediction_by_id_usecase.dart';
+import 'domain/usecases/get_prediction_status_usecase.dart';
 import 'domain/usecases/get_predictions_usecase.dart';
 import 'domain/usecases/request_prediction_usecase.dart';
 
@@ -22,4 +23,6 @@ void initPredictionsFeature(GetIt sl) {
       () => GetLatestPredictionUsecase(sl<PredictionsRepository>()));
   sl.registerLazySingleton(
       () => GetPredictionByIdUsecase(sl<PredictionsRepository>()));
+  sl.registerLazySingleton(
+      () => GetPredictionStatusUsecase(sl<PredictionsRepository>()));
 }

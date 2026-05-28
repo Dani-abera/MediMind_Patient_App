@@ -27,8 +27,9 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
   @override
   Future<UserModel> updateProfile(Map<String, dynamic> data) async {
     try {
-      final res = await _dio.patch('/auth/patient/profile', data: data);
-      return UserModel.fromJson(res.data as Map<String, dynamic>);
+      // PATCH returns 204 NoContent — re-fetch the profile to get updated data.
+      await _dio.patch('/auth/patient/profile', data: data);
+      return await getProfile();
     } on DioException catch (e) {
       throw ServerException(
           message: e.response?.data?['message'] ?? e.message ?? 'Error');

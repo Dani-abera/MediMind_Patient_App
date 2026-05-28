@@ -48,7 +48,11 @@ class ErrorInterceptor extends Interceptor {
 
   String _extractMessage(dynamic data) {
     if (data is Map<String, dynamic>) {
-      return (data['detail'] ?? data['message'] ?? data['title'] ?? 'An error occurred')
+      return (data['error'] ??
+              data['detail'] ??
+              data['message'] ??
+              data['title'] ??
+              'An error occurred')
           .toString();
     }
     return 'An error occurred';

@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/routing/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../domain/entities/prediction_status.dart';
 import '../bloc/prediction/prediction_bloc.dart';
 import '../bloc/prediction/prediction_event.dart';
 import '../bloc/prediction/prediction_state.dart';
@@ -77,7 +78,9 @@ class _RequestPredictionPageState extends State<RequestPredictionPage>
           if (state is PredictionSuccess) {
             _messageTimer?.cancel();
             context.pushReplacement(
-                '${RouteNames.predictionDetail}/${state.prediction.id}');
+              '${RouteNames.predictionDetail}/${state.prediction.id}',
+              extra: state.prediction,
+            );
           }
         },
         builder: (context, state) {
@@ -91,6 +94,7 @@ class _RequestPredictionPageState extends State<RequestPredictionPage>
             return _InsufficientDataView(
               dataPoints: state.dataPointsUsed,
               canRequestPrediction: state.canRequestPrediction,
+              message: state.message,
             );
           }
           if (state is PredictionFailure) {
@@ -103,6 +107,7 @@ class _RequestPredictionPageState extends State<RequestPredictionPage>
             consentGiven: _consentGiven,
             onConsentChanged: (v) => setState(() => _consentGiven = v),
             onProceed: _consentGiven ? _startProcessing : null,
+            status: state is PredictionsLoaded ? state.status : null,
           );
         },
       ),
@@ -115,107 +120,119 @@ class _ConsentView extends StatelessWidget {
     required this.consentGiven,
     required this.onConsentChanged,
     required this.onProceed,
+    this.status,
   });
   final bool consentGiven;
   final ValueChanged<bool> onConsentChanged;
   final VoidCallback? onProceed;
+  final PredictionStatus? status;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.all(24.r),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: EdgeInsets.all(20.r),
-            decoration: BoxDecoration(
-              color: AppColors.info.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(16.r),
-            ),
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(24.r, 24.r, 24.r, 0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Container(
+                  padding: EdgeInsets.all(20.r),
+                  decoration: BoxDecoration(
+                    color: AppColors.info.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(16.r),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.psychology,
+                              color: AppColors.info, size: 28.r),
+                          SizedBox(width: 12.w),
+                          Text('AI Analysis',
+                              style: AppTypography.subtitle
+                                  .copyWith(fontWeight: FontWeight.w700)),
+                        ],
+                      ),
+                      SizedBox(height: 12.h),
+                      Text(
+                        'MediMind will analyze your health records to estimate your risk for:',
+                        style: AppTypography.body,
+                      ),
+                      SizedBox(height: 12.h),
+                      _DiseaseRow(
+                          icon: Icons.bloodtype, label: 'Type 2 Diabetes'),
+                      _DiseaseRow(
+                          icon: Icons.monitor_heart, label: 'Hypertension'),
+                      _DiseaseRow(
+                          icon: Icons.favorite,
+                          label: 'Cardiovascular Disease'),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 20.h),
+                status != null
+                    ? _LiveStatusCard(status: status!)
+                    : const _ConfidenceInfoCard(),
+                SizedBox(height: 20.h),
+                Container(
+                  padding: EdgeInsets.all(16.r),
+                  decoration: BoxDecoration(
+                    color: AppColors.warning.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                  child: Text(
+                    'This prediction is for informational purposes only and does not '
+                    'constitute medical advice. Always consult a qualified healthcare '
+                    'professional for medical decisions.',
+                    style: AppTypography.caption
+                        .copyWith(color: AppColors.neutral700),
+                  ),
+                ),
+                SizedBox(height: 20.h),
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.psychology, color: AppColors.info, size: 28.r),
-                    SizedBox(width: 12.w),
-                    Text('AI Analysis',
-                        style: AppTypography.subtitle
-                            .copyWith(fontWeight: FontWeight.w700)),
+                    Checkbox(
+                      value: consentGiven,
+                      onChanged: (v) => onConsentChanged(v ?? false),
+                      activeColor: AppColors.primary,
+                    ),
+                    SizedBox(width: 8.w),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => onConsentChanged(!consentGiven),
+                        child: Text(
+                          'I understand this is AI-generated and not a medical diagnosis. '
+                          'I consent to my health data being analyzed.',
+                          style: AppTypography.caption,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
-                SizedBox(height: 12.h),
-                Text(
-                  'MediMind will analyze your health records to estimate your risk for:',
-                  style: AppTypography.body,
-                ),
-                SizedBox(height: 12.h),
-                _DiseaseRow(icon: Icons.bloodtype, label: 'Type 2 Diabetes'),
-                _DiseaseRow(
-                    icon: Icons.monitor_heart,
-                    label: 'Hypertension'),
-                _DiseaseRow(
-                    icon: Icons.favorite,
-                    label: 'Cardiovascular Disease'),
+                SizedBox(height: 16.h),
               ],
             ),
           ),
-          SizedBox(height: 20.h),
-          _ConfidenceInfoCard(),
-          SizedBox(height: 20.h),
-          Container(
-            padding: EdgeInsets.all(16.r),
-            decoration: BoxDecoration(
-              color: AppColors.warning.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(12.r),
-            ),
-            child: Text(
-              'This prediction is for informational purposes only and does not '
-              'constitute medical advice. Always consult a qualified healthcare '
-              'professional for medical decisions.',
-              style: AppTypography.caption
-                  .copyWith(color: AppColors.neutral700),
-            ),
-          ),
-          SizedBox(height: 20.h),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Checkbox(
-                value: consentGiven,
-                onChanged: (v) => onConsentChanged(v ?? false),
-                activeColor: AppColors.primary,
-              ),
-              SizedBox(width: 8.w),
-              Expanded(
-                child: GestureDetector(
-                  onTap: () => onConsentChanged(!consentGiven),
-                  child: Text(
-                    'I understand this is AI-generated and not a medical diagnosis. '
-                    'I consent to my health data being analyzed.',
-                    style: AppTypography.caption,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const Spacer(),
-          FilledButton(
+        ),
+        Padding(
+          padding: EdgeInsets.fromLTRB(24.r, 0, 24.r, 24.r),
+          child: FilledButton(
             onPressed: onProceed,
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.primary,
               minimumSize: Size(double.infinity, 52.h),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12.r)),
-              disabledBackgroundColor:
-                  AppColors.neutral300,
+              disabledBackgroundColor: AppColors.neutral300,
             ),
             child: const Text('Run Prediction'),
           ),
-          SizedBox(height: 24.h),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -234,6 +251,81 @@ class _DiseaseRow extends StatelessWidget {
           Icon(icon, color: AppColors.info, size: 16.r),
           SizedBox(width: 8.w),
           Text(label, style: AppTypography.body),
+        ],
+      ),
+    );
+  }
+}
+
+class _LiveStatusCard extends StatelessWidget {
+  const _LiveStatusCard({required this.status});
+  final PredictionStatus status;
+
+  Color get _color => switch (status.confidenceLevel.toLowerCase()) {
+        'high' => AppColors.success,
+        'medium' => AppColors.warning,
+        _ => AppColors.danger,
+      };
+
+  IconData get _icon => switch (status.confidenceLevel.toLowerCase()) {
+        'high' => Icons.verified_outlined,
+        'medium' => Icons.info_outline,
+        _ => Icons.warning_amber_outlined,
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.all(16.r),
+      decoration: BoxDecoration(
+        color: _color.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(12.r),
+        border: Border.all(color: _color.withValues(alpha: 0.22)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(_icon, color: _color, size: 20.r),
+          SizedBox(width: 12.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      '${status.healthRecordCount} vital record${status.healthRecordCount == 1 ? '' : 's'} logged',
+                      style: AppTypography.caption
+                          .copyWith(fontWeight: FontWeight.w700),
+                    ),
+                    SizedBox(width: 8.w),
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                          horizontal: 7.w, vertical: 2.h),
+                      decoration: BoxDecoration(
+                        color: _color.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8.r),
+                      ),
+                      child: Text(
+                        '${status.confidenceLevel} Confidence',
+                        style: AppTypography.caption.copyWith(
+                          color: _color,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 10.sp,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 4.h),
+                Text(
+                  status.message,
+                  style: AppTypography.caption
+                      .copyWith(color: AppColors.neutral700),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -362,49 +454,91 @@ class _InsufficientDataView extends StatelessWidget {
   const _InsufficientDataView({
     required this.dataPoints,
     required this.canRequestPrediction,
+    this.message,
   });
   final int dataPoints;
   final bool canRequestPrediction;
+  final String? message;
 
   @override
   Widget build(BuildContext context) {
+    final displayMessage = message ??
+        (dataPoints == 0
+            ? 'Start logging your vital signs to unlock AI health predictions.'
+            : 'Log more vitals to improve your prediction confidence.');
+
     return Center(
       child: Padding(
         padding: EdgeInsets.all(24.r),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.info_outline,
-                size: 72.r, color: AppColors.warning),
+            Container(
+              padding: EdgeInsets.all(20.r),
+              decoration: BoxDecoration(
+                color: AppColors.warning.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.bar_chart_outlined,
+                  size: 52.r, color: AppColors.warning),
+            ),
             SizedBox(height: 20.h),
-            Text('Insufficient Data',
+            Text('More Data Needed',
                 style: AppTypography.headline
                     .copyWith(fontWeight: FontWeight.w700)),
             SizedBox(height: 12.h),
             Text(
-              !canRequestPrediction
-                  ? 'You currently do not have enough data to request a prediction. Please log more vitals.'
-                  : (dataPoints == 0
-                      ? 'Please log at least one vital record before requesting a prediction.'
-                      : 'You have $dataPoints record${dataPoints == 1 ? '' : 's'}. '
-                          'Log more vitals to improve prediction confidence.'),
-              style: AppTypography.body
-                  .copyWith(color: AppColors.neutral700),
+              displayMessage,
+              style: AppTypography.body.copyWith(color: AppColors.neutral700),
               textAlign: TextAlign.center,
             ),
+            SizedBox(height: 8.h),
+            if (dataPoints > 0)
+              _ProgressHint(current: dataPoints, target: 7),
             SizedBox(height: 32.h),
-            OutlinedButton(
+            FilledButton.icon(
               onPressed: () => context.pop(),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                side: BorderSide(color: AppColors.primary),
-                minimumSize: Size(200.w, 48.h),
+              icon: Icon(Icons.favorite_border, size: 18.r),
+              label: const Text('Log Vitals Now'),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                minimumSize: Size(220.w, 48.h),
               ),
-              child: const Text('Log Vitals First'),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ProgressHint extends StatelessWidget {
+  const _ProgressHint({required this.current, required this.target});
+  final int current;
+  final int target;
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = (current / target).clamp(0.0, 1.0);
+    return Column(
+      children: [
+        SizedBox(height: 8.h),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4.r),
+          child: LinearProgressIndicator(
+            value: progress,
+            backgroundColor: AppColors.neutral300,
+            color: AppColors.primary,
+            minHeight: 6.h,
+          ),
+        ),
+        SizedBox(height: 6.h),
+        Text(
+          '$current / $target records for medium confidence',
+          style:
+              AppTypography.caption.copyWith(color: AppColors.neutral500),
+        ),
+      ],
     );
   }
 }

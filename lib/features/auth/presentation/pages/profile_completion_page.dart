@@ -3,18 +3,21 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../../../core/di/service_locator.dart';
 import '../../../../../core/routing/route_names.dart';
+import '../../../../../core/storage/preferences_storage.dart';
 import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_typography.dart';
 import '../../../../../core/widgets/buttons/primary_button.dart';
 import '../../../../../core/widgets/inputs/app_text_field.dart';
-import '../bloc/register/register_bloc.dart';
-import '../bloc/register/register_event.dart';
-import '../bloc/register/register_state.dart';
+import '../../../profile/presentation/bloc/profile_bloc.dart';
+import '../../../profile/presentation/bloc/profile_event.dart';
+import '../../../profile/presentation/bloc/profile_state.dart';
+import '../bloc/auth/auth_bloc.dart';
+import '../bloc/auth/auth_state.dart';
 
 class ProfileCompletionPage extends StatefulWidget {
-  const ProfileCompletionPage({super.key, required this.phoneNumber});
-  final String phoneNumber;
+  const ProfileCompletionPage({super.key});
 
   @override
   State<ProfileCompletionPage> createState() => _ProfileCompletionPageState();
@@ -23,17 +26,37 @@ class ProfileCompletionPage extends StatefulWidget {
 class _ProfileCompletionPageState extends State<ProfileCompletionPage> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  final _emailController = TextEditingController();
 
   DateTime? _selectedDob;
   String _gender = 'Male';
 
+  // Tracks whether the user tapped Continue — prevents the initial
+  // ProfileLoaded (from ProfileRequested) from triggering navigation.
+  bool _submitted = false;
+
   static const _genders = ['Male', 'Female', 'Other'];
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Pre-fill from the cached AuthBloc user.
+    final authState = context.read<AuthBloc>().state;
+    if (authState is Authenticated) {
+      final user = authState.user;
+      _nameController.text = user.fullName;
+      _selectedDob = user.dateOfBirth;
+      _gender = user.gender ?? 'Male';
+    }
+
+    // Load the profile so ProfileBloc has a current user — required by
+    // _onUpdated, which checks currentUser != null before patching.
+    context.read<ProfileBloc>().add(const ProfileRequested());
+  }
 
   @override
   void dispose() {
     _nameController.dispose();
-    _emailController.dispose();
     super.dispose();
   }
 
@@ -41,9 +64,9 @@ class _ProfileCompletionPageState extends State<ProfileCompletionPage> {
     final now = DateTime.now();
     final picked = await showDatePicker(
       context: context,
-      initialDate: now.subtract(const Duration(days: 365 * 25)),
+      initialDate: _selectedDob ?? now.subtract(const Duration(days: 365 * 25)),
       firstDate: now.subtract(const Duration(days: 365 * 120)),
-      lastDate: now.subtract(const Duration(days: 365 * 13)),
+      lastDate: now.subtract(const Duration(days: 365 * 18)),
     );
     if (picked != null) setState(() => _selectedDob = picked);
   }
@@ -56,26 +79,43 @@ class _ProfileCompletionPageState extends State<ProfileCompletionPage> {
       );
       return;
     }
-    context.read<RegisterBloc>().add(
-          RegisterSubmitted(
-            fullName: _nameController.text.trim(),
-            phoneNumber: widget.phoneNumber,
-            dateOfBirth: DateFormat('yyyy-MM-dd').format(_selectedDob!),
-            gender: _gender,
-            email: _emailController.text.trim().isEmpty
-                ? null
-                : _emailController.text.trim(),
-          ),
-        );
+    setState(() => _submitted = true);
+    context.read<ProfileBloc>().add(ProfileUpdated(
+          fullName: _nameController.text.trim(),
+          dateOfBirth: _selectedDob,
+          gender: _gender,
+        ));
+  }
+
+  Future<void> _markCompleteAndNavigate() async {
+    final authState = context.read<AuthBloc>().state;
+    final prefs = sl<PreferencesStorage>();
+    String userId = '';
+
+    if (authState is Authenticated) {
+      userId = authState.user.patientId;
+      await prefs.setProfileSetupComplete(userId);
+    }
+
+    if (!mounted) return;
+
+    // If health data was already filled in a previous session, skip that gate.
+    if (prefs.isHealthSetupComplete(userId)) {
+      context.goNamed(RouteNames.home);
+    } else {
+      context.goNamed(RouteNames.healthSetup);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<RegisterBloc, RegisterState>(
+    return BlocListener<ProfileBloc, ProfileState>(
       listener: (context, state) {
-        if (state is RegisterSuccess) {
-          context.goNamed(RouteNames.home);
-        } else if (state is RegisterFailure) {
+        // Only navigate after the user explicitly tapped Continue.
+        if (_submitted && (state is ProfileSaved || state is ProfileLoaded)) {
+          _markCompleteAndNavigate();
+        } else if (state is ProfileFailure) {
+          setState(() => _submitted = false);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(state.message),
@@ -90,6 +130,7 @@ class _ProfileCompletionPageState extends State<ProfileCompletionPage> {
           title: const Text('Complete your profile'),
           elevation: 0,
           backgroundColor: Colors.transparent,
+          automaticallyImplyLeading: false,
         ),
         body: SafeArea(
           child: Form(
@@ -100,10 +141,7 @@ class _ProfileCompletionPageState extends State<ProfileCompletionPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   SizedBox(height: 24.h),
-                  Text(
-                    'Tell us about yourself',
-                    style: AppTypography.headline,
-                  ),
+                  Text('Tell us about yourself', style: AppTypography.headline),
                   SizedBox(height: 8.h),
                   Text(
                     'This helps us personalise your experience.',
@@ -131,8 +169,7 @@ class _ProfileCompletionPageState extends State<ProfileCompletionPage> {
                               ? DateFormat('MMM d, yyyy').format(_selectedDob!)
                               : '',
                         ),
-                        prefixIcon:
-                            const Icon(Icons.calendar_today_outlined),
+                        prefixIcon: const Icon(Icons.calendar_today_outlined),
                         validator: (_) => _selectedDob == null
                             ? 'Date of birth is required'
                             : null,
@@ -150,20 +187,13 @@ class _ProfileCompletionPageState extends State<ProfileCompletionPage> {
                     onSelectionChanged: (s) =>
                         setState(() => _gender = s.first),
                   ),
-                  SizedBox(height: 16.h),
-                  AppTextField(
-                    controller: _emailController,
-                    label: 'Email (optional)',
-                    hint: 'you@email.com',
-                    keyboardType: TextInputType.emailAddress,
-                    textInputAction: TextInputAction.done,
-                  ),
                   SizedBox(height: 40.h),
-                  BlocBuilder<RegisterBloc, RegisterState>(
+                  BlocBuilder<ProfileBloc, ProfileState>(
                     builder: (context, state) {
-                      final isLoading = state is RegisterLoading;
+                      final isLoading = state is ProfileSaving ||
+                          (state is ProfileLoading && !_submitted);
                       return PrimaryButton(
-                        label: 'Complete Profile',
+                        label: 'Continue',
                         isLoading: isLoading,
                         onPressed: isLoading ? null : _onComplete,
                       );

@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import '../../../domain/entities/prediction.dart';
+import '../../../domain/entities/prediction_status.dart';
 
 abstract class PredictionState extends Equatable {
   const PredictionState();
@@ -19,11 +20,13 @@ class PredictionsLoaded extends PredictionState {
   const PredictionsLoaded({
     required this.predictions,
     this.latestPrediction,
+    this.status,
   });
   final List<Prediction> predictions;
   final Prediction? latestPrediction;
+  final PredictionStatus? status;
   @override
-  List<Object?> get props => [predictions, latestPrediction];
+  List<Object?> get props => [predictions, latestPrediction, status];
 }
 
 // Shown while the AI model is processing
@@ -36,11 +39,20 @@ class PredictionInsufficientData extends PredictionState {
   const PredictionInsufficientData({
     required this.dataPointsUsed,
     required this.canRequestPrediction,
+    this.message,
   });
   final int dataPointsUsed;
   final bool canRequestPrediction;
+  final String? message;
   @override
-  List<Object?> get props => [dataPointsUsed, canRequestPrediction];
+  List<Object?> get props => [dataPointsUsed, canRequestPrediction, message];
+}
+
+class PredictionStatusLoaded extends PredictionState {
+  const PredictionStatusLoaded(this.status);
+  final PredictionStatus status;
+  @override
+  List<Object?> get props => [status];
 }
 
 class PredictionSuccess extends PredictionState {

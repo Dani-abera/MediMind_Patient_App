@@ -20,6 +20,16 @@ class _TrendsDetailPageState extends State<TrendsDetailPage> {
   int _selectedDays = 30;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<TrendsBloc>().add(TrendsRequested(days: _selectedDays));
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -52,7 +62,8 @@ class _TrendsDetailPageState extends State<TrendsDetailPage> {
           if (state is TrendsLoaded) {
             return _TrendsContent(data: state.data);
           }
-          return const SizedBox.shrink();
+          return const Center(
+              child: CircularProgressIndicator(color: AppColors.primary));
         },
       ),
     );

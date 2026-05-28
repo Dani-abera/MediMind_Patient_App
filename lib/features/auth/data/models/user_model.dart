@@ -18,7 +18,10 @@ class UserModel extends User {
       patientId: json['patientId'] as String? ?? json['_id'] as String? ?? '',
       fullName: json['fullName'] as String? ?? '',
       phoneNumber: json['phoneNumber'] as String? ?? '',
-      isProfileComplete: json['isProfileComplete'] as bool? ?? false,
+      // PatientProfileDto (GET /auth/patient/profile) doesn't include
+      // isProfileComplete — default to true since having a profile record means
+      // registration already completed.
+      isProfileComplete: json['isProfileComplete'] as bool? ?? true,
       email: json['email'] as String?,
       dateOfBirth: json['dateOfBirth'] != null
           ? DateTime.tryParse(json['dateOfBirth'] as String)

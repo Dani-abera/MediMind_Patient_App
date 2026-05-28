@@ -22,8 +22,18 @@ class _LogVitalsPageState extends State<LogVitalsPage> {
   final _formKey = GlobalKey<FormState>();
 
   @override
+  void initState() {
+    super.initState();
+    context.read<VitalsFormBloc>().add(const VitalsFormReset());
+  }
+
+  @override
   Widget build(BuildContext context) {
     return BlocListener<VitalsFormBloc, VitalsFormState>(
+      listenWhen: (previous, current) =>
+          previous.status != current.status &&
+          (current.status == VitalsFormStatus.success ||
+              current.status == VitalsFormStatus.failure),
       listener: (context, state) {
         if (state.status == VitalsFormStatus.success) {
           context.read<VitalsBloc>().add(const VitalsRefreshed());
@@ -34,7 +44,7 @@ class _LogVitalsPageState extends State<LogVitalsPage> {
             ),
           );
           context.pop();
-        } else if (state.status == VitalsFormStatus.failure) {
+        } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(state.errorMessage ?? 'Failed to save'),
