@@ -7,7 +7,6 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../auth/presentation/bloc/auth/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth/auth_event.dart';
-
 import '../bloc/settings_bloc.dart';
 import '../bloc/settings_event.dart';
 import '../bloc/settings_state.dart';
@@ -42,6 +41,11 @@ class _SettingsPageState extends State<SettingsPage> {
             context.read<AuthBloc>().add(const UserLoggedOut());
             context.go('/');
           }
+          if (state.errorMessage != null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(state.errorMessage!)),
+            );
+          }
         },
         builder: (context, state) {
           return ListView(
@@ -52,13 +56,6 @@ class _SettingsPageState extends State<SettingsPage> {
                 onChanged: (m) => context
                     .read<SettingsBloc>()
                     .add(SettingsThemeModeChanged(m)),
-              ),
-              _SectionHeader(label: 'Language'),
-              _LanguageTile(
-                current: state.languageCode,
-                onChanged: (code) => context
-                    .read<SettingsBloc>()
-                    .add(SettingsLanguageChanged(code)),
               ),
               _SectionHeader(label: 'Notifications'),
               _NavTile(
@@ -99,12 +96,6 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               _SectionHeader(label: 'Account'),
               _NavTile(
-                icon: Icons.logout,
-                title: 'Sign Out',
-                onTap: () => _confirmSignOut(context),
-                textColor: AppColors.danger,
-              ),
-              _NavTile(
                 icon: Icons.delete_outline,
                 title: 'Delete Account',
                 onTap: () => _confirmDeleteAccount(context, state),
@@ -118,31 +109,8 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  void _confirmSignOut(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Sign Out'),
-        content: const Text('Are you sure you want to sign out?'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
-          TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                context.read<AuthBloc>().add(const UserLoggedOut());
-              },
-              style:
-                  TextButton.styleFrom(foregroundColor: AppColors.danger),
-              child: const Text('Sign Out')),
-        ],
-      ),
-    );
-  }
-
   void _confirmDeleteAccount(BuildContext context, SettingsState state) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Delete Account'),
@@ -153,20 +121,22 @@ class _SettingsPageState extends State<SettingsPage> {
               onPressed: () => Navigator.pop(context),
               child: const Text('Cancel')),
           TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                context
-                    .read<SettingsBloc>()
-                    .add(const SettingsAccountDeleteRequested());
-              },
-              style:
-                  TextButton.styleFrom(foregroundColor: AppColors.danger),
-              child: state.isLoading
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Text('Delete')),
+            onPressed: state.isLoading
+                ? null
+                : () {
+                    Navigator.pop(context);
+                    context
+                        .read<SettingsBloc>()
+                        .add(const SettingsAccountDeleteRequested());
+                  },
+            style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+            child: state.isLoading
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Text('Delete'),
+          ),
         ],
       ),
     );
@@ -273,47 +243,6 @@ class _ThemeTile extends StatelessWidget {
   }
 }
 
-class _LanguageTile extends StatelessWidget {
-  const _LanguageTile(
-      {required this.current, required this.onChanged});
-  final String current;
-  final ValueChanged<String> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: 16.w, vertical: 2.h),
-      padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(8.r),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.language_outlined,
-                  size: 20.sp, color: AppColors.neutral900),
-              SizedBox(width: 12.w),
-              Text('Language', style: AppTypography.body),
-            ],
-          ),
-          SizedBox(height: 8.h),
-          SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(value: 'en', label: Text('English')),
-              ButtonSegment(value: 'am', label: Text('አማርኛ')),
-            ],
-            selected: {current},
-            onSelectionChanged: (s) => onChanged(s.first),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _ComingSoonBadge extends StatelessWidget {
   const _ComingSoonBadge();
 
@@ -330,3 +259,4 @@ class _ComingSoonBadge extends StatelessWidget {
     );
   }
 }
+

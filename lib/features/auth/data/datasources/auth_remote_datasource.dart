@@ -8,11 +8,10 @@ import '../models/register_request_model.dart';
 abstract class AuthRemoteDataSource {
   Future<String> registerPatient(RegisterRequestModel request);
   Future<void> requestOtp(OtpRequestModel request);
-  Future<AuthTokensModel> verifyOtp(
-    OtpVerifyRequestModel request,
-  );
+  Future<AuthTokensModel> verifyOtp(OtpVerifyRequestModel request);
   Future<AuthTokensModel> refreshToken(String refreshToken);
   Future<void> logout(String refreshToken);
+  Future<void> deleteAccount();
 }
 
 class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
@@ -76,6 +75,15 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   Future<void> logout(String refreshToken) async {
     try {
       await _dio.post('/auth/logout', data: {'refreshToken': refreshToken});
+    } on DioException catch (e) {
+      throw _mapDioException(e);
+    }
+  }
+
+  @override
+  Future<void> deleteAccount() async {
+    try {
+      await _dio.delete('/auth/patient/profile');
     } on DioException catch (e) {
       throw _mapDioException(e);
     }

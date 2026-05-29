@@ -40,7 +40,7 @@ class ProfileRemoteDataSourceImpl implements ProfileRemoteDataSource {
   Future<String> uploadProfileImage(String filePath) async {
     try {
       final formData = FormData.fromMap({
-        'image': await MultipartFile.fromFile(filePath),
+        'file': await MultipartFile.fromFile(filePath),
       });
       final res = await _dio.put('/profile-images/me', data: formData);
       return res.data['imageUrl'] as String? ??

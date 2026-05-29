@@ -7,6 +7,7 @@ import 'data/datasources/auth_remote_datasource.dart';
 import 'data/repositories/auth_repository_impl.dart';
 import 'domain/repositories/auth_repository.dart';
 import 'domain/usecases/check_auth_status_usecase.dart';
+import 'domain/usecases/delete_account_usecase.dart';
 import 'domain/usecases/logout_usecase.dart';
 import 'domain/usecases/register_patient_usecase.dart';
 import 'domain/usecases/request_otp_usecase.dart';
@@ -43,6 +44,7 @@ Future<void> initAuthFeature(GetIt sl) async {
   sl.registerLazySingleton(() => RequestOtpUsecase(sl<AuthRepository>()));
   sl.registerLazySingleton(() => VerifyOtpUsecase(sl<AuthRepository>()));
   sl.registerLazySingleton(() => LogoutUsecase(sl<AuthRepository>()));
+  sl.registerLazySingleton(() => DeleteAccountUsecase(sl<AuthRepository>()));
 
   // BLoC — AuthBloc is a singleton (global state)
   sl.registerLazySingleton(

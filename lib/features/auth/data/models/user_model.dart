@@ -1,3 +1,4 @@
+import '../../../../core/constants/api_constants.dart';
 import '../../domain/entities/user.dart';
 
 class UserModel extends User {
@@ -27,7 +28,11 @@ class UserModel extends User {
           ? DateTime.tryParse(json['dateOfBirth'] as String)
           : null,
       gender: json['gender'] as String?,
-      profileImageUrl: json['profileImageUrl'] as String?,
+      profileImageUrl: () {
+        final u = ApiConstants.resolveImageUrl(
+            json['profileImageUrl'] as String?);
+        return u.isEmpty ? null : u;
+      }(),
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'] as String)
           : null,

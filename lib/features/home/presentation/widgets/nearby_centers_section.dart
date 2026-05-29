@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -25,14 +26,13 @@ class NearbyCentersSection extends StatelessWidget {
         ),
         SizedBox(height: 12.h),
         SizedBox(
-          height: 140.h,
+          height: 160.h,
           child: ListView.separated(
             padding: EdgeInsets.symmetric(horizontal: 24.w),
             scrollDirection: Axis.horizontal,
             itemCount: centers.length,
             separatorBuilder: (_, __) => SizedBox(width: 12.w),
-            itemBuilder: (context, i) =>
-                _CenterCard(center: centers[i]),
+            itemBuilder: (context, i) => _CenterCard(center: centers[i]),
           ),
         ),
       ],
@@ -44,10 +44,21 @@ class _CenterCard extends StatelessWidget {
   const _CenterCard({required this.center});
   final HealthcareCenter center;
 
+  Future<void> _openInMaps() async {
+    final uri = Uri.parse(
+      'https://maps.google.com/?q=${center.latitude},${center.longitude}',
+    );
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final hasCoords = center.latitude != null && center.longitude != null;
+
     return GestureDetector(
-      onTap: () => context.push('/book/center/${center.id}'),
+      onTap: () => context.go('/book/center/${center.id}'),
       child: Container(
         width: 160.w,
         decoration: BoxDecoration(
@@ -60,7 +71,7 @@ class _CenterCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Image placeholder
+              // Image
               Container(
                 height: 72.h,
                 width: double.infinity,
@@ -74,7 +85,7 @@ class _CenterCard extends StatelessWidget {
                     : const _CenterPlaceholder(),
               ),
               Padding(
-                padding: EdgeInsets.all(8.r),
+                padding: EdgeInsets.fromLTRB(8.r, 8.r, 8.r, 4.r),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -96,21 +107,38 @@ class _CenterCard extends StatelessWidget {
                           color: AppColors.neutral500,
                         ),
                         SizedBox(width: 2.w),
-                        Text(
-                          center.formattedDistance,
-                          style: AppTypography.overline,
+                        Expanded(
+                          child: Text(
+                            center.formattedDistance,
+                            style: AppTypography.overline,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
+                        if (hasCoords)
+                          GestureDetector(
+                            onTap: _openInMaps,
+                            behavior: HitTestBehavior.opaque,
+                            child: Padding(
+                              padding: EdgeInsets.only(left: 4.w),
+                              child: Icon(
+                                Icons.directions_outlined,
+                                size: 14.r,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                     if (center.specializations.isNotEmpty) ...[
                       SizedBox(height: 4.h),
                       Container(
                         padding: EdgeInsets.symmetric(
-                            horizontal: 6.w, vertical: 2.h),
+                          horizontal: 6.w,
+                          vertical: 2.h,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.primary.withValues(alpha: 0.1),
-                          borderRadius:
-                              BorderRadius.circular(AppRadius.full),
+                          borderRadius: BorderRadius.circular(AppRadius.full),
                         ),
                         child: Text(
                           center.specializations.first,

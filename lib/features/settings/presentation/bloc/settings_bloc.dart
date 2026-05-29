@@ -1,11 +1,15 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/storage/preferences_storage.dart';
+import '../../../auth/domain/usecases/delete_account_usecase.dart';
 import 'settings_event.dart';
 import 'settings_state.dart';
 
 class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
-  SettingsBloc({required PreferencesStorage storage})
-      : _storage = storage,
+  SettingsBloc({
+    required PreferencesStorage storage,
+    required DeleteAccountUsecase deleteAccount,
+  })  : _storage = storage,
+        _deleteAccount = deleteAccount,
         super(const SettingsState()) {
     on<SettingsRequested>(_onRequested);
     on<SettingsThemeModeChanged>(_onThemeChanged);
@@ -14,6 +18,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
   }
 
   final PreferencesStorage _storage;
+  final DeleteAccountUsecase _deleteAccount;
 
   void _onRequested(
     SettingsRequested event,
@@ -49,8 +54,11 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     Emitter<SettingsState> emit,
   ) async {
     emit(state.copyWith(isLoading: true));
-    // Placeholder: integrate with auth repository when endpoint is available
-    await Future<void>.delayed(const Duration(milliseconds: 500));
-    emit(state.copyWith(isLoading: false, accountDeleted: true));
+    final result = await _deleteAccount();
+    result.fold(
+      (failure) => emit(
+          state.copyWith(isLoading: false, errorMessage: failure.message)),
+      (_) => emit(state.copyWith(isLoading: false, accountDeleted: true)),
+    );
   }
 }

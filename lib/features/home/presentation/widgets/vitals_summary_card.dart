@@ -38,7 +38,7 @@ class VitalsSummaryCard extends StatelessWidget {
               _VitalsLogged(metrics: healthRecord!.metrics)
             else
               _VitalsEmpty(
-                onTap: () => context.push('/health/log-vitals'),
+                onTap: () => context.go(RouteNames.logVitals),
               ),
           ],
         ),

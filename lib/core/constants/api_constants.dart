@@ -16,4 +16,13 @@ class ApiConstants {
 
   //static final String? chapaPublicKey = dotenv.env['CHAPA_PUBLIC_KEY'];
   static String get chapaPublicKey => dotenv.env['CHAPA_PUBLIC_KEY'] ?? '';
+
+  // Converts a relative API image path (e.g. /uploads/...) to an absolute URL.
+  // Full URLs are returned unchanged.
+  static String resolveImageUrl(String? url) {
+    if (url == null || url.isEmpty) return '';
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    final host = signalRBaseUrl.replaceFirst(RegExp(r'/$'), '');
+    return '$host$url';
+  }
 }

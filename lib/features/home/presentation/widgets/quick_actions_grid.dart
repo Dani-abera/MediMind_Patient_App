@@ -16,13 +16,13 @@ class QuickActionsGrid extends StatelessWidget {
         icon: Icons.calendar_month_rounded,
         label: 'Book\nAppointment',
         color: AppColors.primary,
-        onTap: () => context.pushNamed(RouteNames.book),
+        onTap: () => context.goNamed(RouteNames.book),
       ),
       _Action(
         icon: Icons.monitor_heart_outlined,
         label: 'Log\nVitals',
         color: AppColors.info,
-        onTap: () => context.push('/health/log-vitals'),
+        onTap: () => context.go(RouteNames.logVitals),
       ),
       _Action(
         icon: Icons.medication_outlined,
@@ -34,7 +34,7 @@ class QuickActionsGrid extends StatelessWidget {
         icon: Icons.psychology_rounded,
         label: 'AI\nPrediction',
         color: AppColors.accent,
-        onTap: () => context.push('/health/predictions'),
+        onTap: () => context.go(RouteNames.requestPrediction),
       ),
     ];
 

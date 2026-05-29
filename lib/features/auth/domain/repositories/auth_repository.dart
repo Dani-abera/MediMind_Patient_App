@@ -28,5 +28,9 @@ abstract class AuthRepository {
 
   Future<Either<Failure, User?>> getCurrentUser();
 
+  Future<Either<Failure, void>> refreshCachedUser(User user);
+
+  Future<Either<Failure, void>> deleteAccount();
+
   Stream<AuthStatus> get authStatusStream;
 }

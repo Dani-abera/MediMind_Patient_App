@@ -10,10 +10,12 @@ import '../../../../../core/theme/app_colors.dart';
 import '../../../../../core/theme/app_typography.dart';
 import '../../../../../core/widgets/buttons/primary_button.dart';
 import '../../../../../core/widgets/inputs/app_text_field.dart';
+import '../../domain/repositories/auth_repository.dart';
 import '../../../profile/presentation/bloc/profile_bloc.dart';
 import '../../../profile/presentation/bloc/profile_event.dart';
 import '../../../profile/presentation/bloc/profile_state.dart';
 import '../bloc/auth/auth_bloc.dart';
+import '../bloc/auth/auth_event.dart';
 import '../bloc/auth/auth_state.dart';
 
 class ProfileCompletionPage extends StatefulWidget {
@@ -111,8 +113,12 @@ class _ProfileCompletionPageState extends State<ProfileCompletionPage> {
   Widget build(BuildContext context) {
     return BlocListener<ProfileBloc, ProfileState>(
       listener: (context, state) {
-        // Only navigate after the user explicitly tapped Continue.
-        if (_submitted && (state is ProfileSaved || state is ProfileLoaded)) {
+        if (_submitted && state is ProfileSaved) {
+          setState(() => _submitted = false);
+          // Sync the updated user (with the real fullName) into AuthBloc so
+          // the greeting on home page shows the correct name, not "Patient".
+          context.read<AuthBloc>().add(UserLoggedIn(state.user));
+          sl<AuthRepository>().refreshCachedUser(state.user);
           _markCompleteAndNavigate();
         } else if (state is ProfileFailure) {
           setState(() => _submitted = false);

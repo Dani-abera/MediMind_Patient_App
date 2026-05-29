@@ -156,4 +156,35 @@ class AuthRepositoryImpl implements AuthRepository {
       return const Left(UnexpectedFailure());
     }
   }
+
+  @override
+  Future<Either<Failure, void>> deleteAccount() async {
+    try {
+      await remoteDataSource.deleteAccount();
+      await localDataSource.clearTokens();
+      await localDataSource.clearCache();
+      _authStatusController.add(AuthStatus.unauthenticated);
+      return const Right(null);
+    } on UnauthorizedException catch (e) {
+      return Left(AuthFailure(message: e.message));
+    } on ServerException catch (e) {
+      return Left(ServerFailure(message: e.message, code: e.code));
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(message: e.message));
+    } catch (_) {
+      return const Left(UnexpectedFailure());
+    }
+  }
+
+  @override
+  Future<Either<Failure, void>> refreshCachedUser(User user) async {
+    try {
+      await localDataSource.cacheUser(UserModel.fromEntity(user));
+      return const Right(null);
+    } on CacheException catch (e) {
+      return Left(CacheFailure(message: e.message));
+    } catch (_) {
+      return const Left(UnexpectedFailure());
+    }
+  }
 }

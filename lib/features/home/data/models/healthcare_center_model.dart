@@ -1,3 +1,4 @@
+import '../../../../core/constants/api_constants.dart';
 import '../../domain/entities/healthcare_center.dart';
 
 class HealthcareCenterModel extends HealthcareCenter {
@@ -17,11 +18,21 @@ class HealthcareCenterModel extends HealthcareCenter {
             .toList() ??
         [];
     return HealthcareCenterModel(
-      id: json['_id'] as String? ?? json['id'] as String? ?? '',
-      name: json['name'] as String? ?? '',
-      distanceKm: (json['distanceKm'] as num?)?.toDouble() ?? 0.0,
+      // Backend CenterResponseDto uses PascalCase keys serialised to camelCase:
+      // CenterId → centerId, CenterName → centerName, Distance → distance
+      id: json['centerId'] as String? ??
+          json['_id'] as String? ??
+          json['id'] as String? ??
+          '',
+      name: json['centerName'] as String? ?? json['name'] as String? ?? '',
+      distanceKm: (json['distance'] as num?)?.toDouble() ??
+          (json['distanceKm'] as num?)?.toDouble() ??
+          0.0,
       specializations: specs,
-      imageUrl: json['imageUrl'] as String?,
+      imageUrl: () {
+        final u = ApiConstants.resolveImageUrl(json['imageUrl'] as String?);
+        return u.isEmpty ? null : u;
+      }(),
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
     );

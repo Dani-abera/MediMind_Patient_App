@@ -2,13 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
+import '../../../../core/di/service_locator.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/widgets/feedback/app_shimmer.dart';
+import '../../../auth/domain/repositories/auth_repository.dart';
 import '../../../auth/presentation/bloc/auth/auth_bloc.dart';
+import '../../../auth/presentation/bloc/auth/auth_event.dart';
 import '../../../auth/presentation/bloc/auth/auth_state.dart';
 import '../../../notifications/presentation/bloc/notification_bloc.dart';
 import '../../../notifications/presentation/bloc/notification_event.dart';
+import '../../../profile/data/datasources/profile_remote_datasource.dart';
 import '../bloc/home_bloc.dart';
 import '../bloc/home_event.dart';
 import '../bloc/home_state.dart';
@@ -32,104 +36,127 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     context.read<HomeBloc>().add(const HomeOpened());
     context.read<NotificationBloc>().add(const NotificationPollingStarted());
+    _syncUserProfile();
+  }
+
+  // Fetches the real user name from the API and syncs it into AuthBloc +
+  // local cache. Runs fire-and-forget so it never blocks the UI.
+  Future<void> _syncUserProfile() async {
+    try {
+      final freshUser = await sl<ProfileRemoteDataSource>().getProfile();
+      if (!mounted) return;
+      context.read<AuthBloc>().add(UserLoggedIn(freshUser));
+      sl<AuthRepository>().refreshCachedUser(freshUser);
+    } catch (_) {
+      // best-effort: if the API call fails the cached name is used
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final user = context.read<AuthBloc>().state;
-    final userName = user is Authenticated ? user.user.fullName : 'there';
-    final avatarUrl = user is Authenticated ? user.user.profileImageUrl : null;
+    return BlocSelector<AuthBloc, AuthState, ({String name, String? avatarUrl})>(
+      selector: (state) {
+        if (state is! Authenticated) {
+          return (name: 'there', avatarUrl: null);
+        }
+        final raw = state.user.fullName.trim();
+        final name = (raw.isEmpty || raw.toLowerCase() == 'patient')
+            ? 'there'
+            : raw;
+        return (name: name, avatarUrl: state.user.profileImageUrl);
+      },
+      builder: (context, userInfo) {
+        return Scaffold(
+          appBar: AppBar(
+            title: HomePageAppBar(
+              fullName: userInfo.name,
+              avatarUrl: userInfo.avatarUrl,
+            ),
+          ),
+          backgroundColor: AppColors.background,
+          body: SafeArea(
+            child: BlocBuilder<HomeBloc, HomeState>(
+              builder: (context, state) {
+                if (state is HomeLoading || state is HomeInitial) {
+                  return _HomeShimmer();
+                }
+                if (state is HomeError) {
+                  return _HomeError(
+                    message: state.message,
+                    onRetry: () =>
+                        context.read<HomeBloc>().add(const HomeRefreshed()),
+                  );
+                }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: HomePageAppBar(fullName: userName, avatarUrl: avatarUrl),
-      ),
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: BlocBuilder<HomeBloc, HomeState>(
-          builder: (context, state) {
-            if (state is HomeLoading || state is HomeInitial) {
-              return _HomeShimmer();
-            }
-            if (state is HomeError) {
-              return _HomeError(
-                message: state.message,
-                onRetry: () =>
-                    context.read<HomeBloc>().add(const HomeRefreshed()),
-              );
-            }
+                final data = switch (state) {
+                  HomeLoaded(data: final d) => d,
+                  HomePartialLoaded(data: final d) => d,
+                  _ => null,
+                };
 
-            final data = switch (state) {
-              HomeLoaded(data: final d) => d,
-              HomePartialLoaded(data: final d) => d,
-              _ => null,
-            };
+                if (data == null) return const SizedBox.shrink();
 
-            if (data == null) return const SizedBox.shrink();
-
-            final user = context.read<AuthBloc>().state;
-            final userName = user is Authenticated
-                ? user.user.fullName
-                : 'there';
-            final avatarUrl = user is Authenticated
-                ? user.user.profileImageUrl
-                : null;
-
-            return RefreshIndicator(
-              color: AppColors.primary,
-              onRefresh: () async {
-                context.read<HomeBloc>().add(const HomeRefreshed());
-                await context.read<HomeBloc>().stream.firstWhere(
-                  (s) => s is! HomeLoading,
+                return RefreshIndicator(
+                  color: AppColors.primary,
+                  onRefresh: () async {
+                    _syncUserProfile();
+                    context.read<HomeBloc>().add(const HomeRefreshed());
+                    await context.read<HomeBloc>().stream.firstWhere(
+                          (s) => s is! HomeLoading,
+                        );
+                  },
+                  child: CustomScrollView(
+                    slivers: [
+                      SliverToBoxAdapter(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SizedBox(height: 20.h),
+                            GreetingHeader(
+                              fullName: userInfo.name,
+                              avatarUrl: userInfo.avatarUrl,
+                            ),
+                            SizedBox(height: 24.h),
+                            if (data.upcomingAppointment != null) ...[
+                              UpcomingAppointmentCard(
+                                appointment: data.upcomingAppointment!,
+                              ),
+                              SizedBox(height: 24.h),
+                            ],
+                            Padding(
+                              padding:
+                                  EdgeInsets.symmetric(horizontal: 24.w),
+                              child: Text(
+                                'Quick Actions',
+                                style: AppTypography.subtitle,
+                              ),
+                            ),
+                            SizedBox(height: 12.h),
+                            const QuickActionsGrid(),
+                            SizedBox(height: 24.h),
+                            VitalsSummaryCard(
+                              healthRecord: data.latestHealthRecord,
+                            ),
+                            SizedBox(height: 24.h),
+                            if (data.latestPrediction != null) ...[
+                              PredictionTeaser(
+                                  prediction: data.latestPrediction!),
+                              SizedBox(height: 24.h),
+                            ],
+                            NearbyCentersSection(
+                                centers: data.nearbyCenters),
+                            SizedBox(height: 32.h),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 );
               },
-              child: CustomScrollView(
-                slivers: [
-                  SliverToBoxAdapter(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SizedBox(height: 20.h),
-                        GreetingHeader(
-                          fullName: userName,
-                          avatarUrl: avatarUrl,
-                        ),
-                        SizedBox(height: 24.h),
-                        if (data.upcomingAppointment != null) ...[
-                          UpcomingAppointmentCard(
-                            appointment: data.upcomingAppointment!,
-                          ),
-                          SizedBox(height: 24.h),
-                        ],
-                        Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 24.w),
-                          child: Text(
-                            'Quick Actions',
-                            style: AppTypography.subtitle,
-                          ),
-                        ),
-                        SizedBox(height: 12.h),
-                        const QuickActionsGrid(),
-                        SizedBox(height: 24.h),
-                        VitalsSummaryCard(
-                          healthRecord: data.latestHealthRecord,
-                        ),
-                        SizedBox(height: 24.h),
-                        if (data.latestPrediction != null) ...[
-                          PredictionTeaser(prediction: data.latestPrediction!),
-                          SizedBox(height: 24.h),
-                        ],
-                        NearbyCentersSection(centers: data.nearbyCenters),
-                        SizedBox(height: 32.h),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
-      ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
