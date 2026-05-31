@@ -7,6 +7,6 @@ class GetDoctorDetailUsecase {
   const GetDoctorDetailUsecase(this._repository);
   final DoctorsRepository _repository;
 
-  Future<Either<Failure, Doctor>> call(String doctorId) =>
-      _repository.getDoctorDetail(doctorId);
+  Future<Either<Failure, Doctor>> call(String doctorId, {String? centerId}) =>
+      _repository.getDoctorDetail(doctorId, centerId: centerId);
 }

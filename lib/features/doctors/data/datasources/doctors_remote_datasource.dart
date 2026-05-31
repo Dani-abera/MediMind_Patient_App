@@ -15,7 +15,7 @@ abstract class DoctorsRemoteDataSource {
     String? name,
   });
 
-  Future<DoctorModel> getDoctorDetail(String doctorId);
+  Future<DoctorModel> getDoctorDetail(String doctorId, {String? centerId});
 
   Future<List<TimeSlot>> getDoctorAvailability({
     required String doctorId,
@@ -85,10 +85,13 @@ class DoctorsRemoteDataSourceImpl implements DoctorsRemoteDataSource {
   }
 
   @override
-  Future<DoctorModel> getDoctorDetail(String doctorId) async {
+  Future<DoctorModel> getDoctorDetail(String doctorId, {String? centerId}) async {
     try {
       final response = await _dio.get('/doctors/$doctorId');
-      return DoctorModel.fromJson(response.data as Map<String, dynamic>);
+      return DoctorModel.fromJson(
+        response.data as Map<String, dynamic>,
+        centerId: centerId,
+      );
     } on DioException catch (e) {
       throw e.error is Exception
           ? e.error as Exception

@@ -26,12 +26,28 @@ class DoctorModel extends Doctor {
     return str.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
   }
 
-  factory DoctorModel.fromJson(Map<String, dynamic> json) {
+  factory DoctorModel.fromJson(Map<String, dynamic> json, {String? centerId}) {
     final workingCenters =
         (json['workingCenters'] as List<dynamic>?)
             ?.map((e) => (e as Map<String, dynamic>)['centerId']?.toString())
             .whereType<String>()
             .toList();
+
+    double fee = (json['consultationFee'] as num?)?.toDouble() ?? 0.0;
+    if (fee == 0.0 && centerId != null) {
+      final centers = json['workingCenters'] as List<dynamic>?;
+      if (centers != null) {
+        for (final c in centers.whereType<Map<String, dynamic>>()) {
+          if (c['centerId']?.toString() == centerId) {
+            final f = (c['consultationFee'] as num?)?.toDouble();
+            if (f != null && f > 0) {
+              fee = f;
+              break;
+            }
+          }
+        }
+      }
+    }
 
     return DoctorModel(
       id: json['doctorId'] as String? ?? json['id'] as String? ?? '',
@@ -44,7 +60,7 @@ class DoctorModel extends Doctor {
       rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
       reviewCount: (json['reviewCount'] as num?)?.toInt() ?? 0,
       patientsSeen: (json['patientsSeen'] as num?)?.toInt() ?? 0,
-      consultationFee: (json['consultationFee'] as num?)?.toDouble() ?? 0.0,
+      consultationFee: fee,
       languages: (json['languagesSpoken'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??

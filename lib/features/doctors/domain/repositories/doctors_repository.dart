@@ -15,7 +15,7 @@ abstract class DoctorsRepository {
     String? name,
   });
 
-  Future<Either<Failure, Doctor>> getDoctorDetail(String doctorId);
+  Future<Either<Failure, Doctor>> getDoctorDetail(String doctorId, {String? centerId});
 
   Future<Either<Failure, List<TimeSlot>>> getDoctorAvailability({
     required String doctorId,

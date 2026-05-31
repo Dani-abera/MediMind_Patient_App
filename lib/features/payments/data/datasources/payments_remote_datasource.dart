@@ -6,6 +6,7 @@ abstract class PaymentsRemoteDataSource {
   Future<PaymentModel> initiatePayment(String appointmentId);
   Future<PaymentModel> getPaymentStatus(String paymentId);
   Future<PaymentModel> syncPayment(String paymentId);
+  Future<PaymentModel> verifyPayment(String txRef);
   Future<String?> getReceiptUrl(String paymentId);
 }
 
@@ -44,6 +45,18 @@ class PaymentsRemoteDataSourceImpl implements PaymentsRemoteDataSource {
   Future<PaymentModel> syncPayment(String paymentId) async {
     try {
       final response = await _dio.post('/payments/$paymentId/sync');
+      return PaymentModel.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw e.error is Exception
+          ? e.error as Exception
+          : ServerException(message: e.message ?? 'Server error');
+    }
+  }
+
+  @override
+  Future<PaymentModel> verifyPayment(String txRef) async {
+    try {
+      final response = await _dio.post('/payments/$txRef/verify');
       return PaymentModel.fromJson(response.data as Map<String, dynamic>);
     } on DioException catch (e) {
       throw e.error is Exception

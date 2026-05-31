@@ -7,6 +7,8 @@ import '../../../../core/routing/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../bloc/appointments/appointments_bloc.dart';
+import '../bloc/appointments/appointments_event.dart';
 import '../bloc/booking_flow/booking_flow_bloc.dart';
 import '../bloc/booking_flow/booking_flow_event.dart';
 import '../bloc/booking_flow/booking_flow_state.dart';
@@ -134,13 +136,13 @@ class _BookingConfirmationPageState extends State<BookingConfirmationPage>
                         if (appointmentId != null)
                           OutlinedButton(
                             onPressed: () {
-                              context
-                                  .read<BookingFlowBloc>()
-                                  .add(const BookingReset());
-                              context.pushNamed(
+                              context.goNamed(
                                 RouteNames.appointmentDetail,
                                 pathParameters: {'id': appointmentId},
                               );
+                              context
+                                  .read<BookingFlowBloc>()
+                                  .add(const BookingReset());
                             },
                             style: OutlinedButton.styleFrom(
                               minimumSize: Size(double.infinity, 52.h),
@@ -159,10 +161,17 @@ class _BookingConfirmationPageState extends State<BookingConfirmationPage>
                         SizedBox(height: 12.h),
                         ElevatedButton(
                           onPressed: () {
+                            final router = GoRouter.of(context);
                             context
                                 .read<BookingFlowBloc>()
                                 .add(const BookingReset());
-                            context.goNamed(RouteNames.home);
+                            context
+                                .read<AppointmentsBloc>()
+                                .add(const AppointmentsRefreshed());
+                            router.go('/book');
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              router.go('/home');
+                            });
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,

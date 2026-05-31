@@ -267,7 +267,7 @@ class _QrSection extends StatelessWidget {
               border: Border.all(color: AppColors.neutral300),
             ),
             child: Image.memory(
-              base64Decode(base64),
+              base64Decode(base64.contains(',') ? base64.split(',').last : base64),
               fit: BoxFit.contain,
               errorBuilder: (_, __, ___) => const Icon(Icons.qr_code,
                   size: 80, color: AppColors.neutral500),

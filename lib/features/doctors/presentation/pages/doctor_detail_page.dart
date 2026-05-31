@@ -34,7 +34,10 @@ class _DoctorDetailPageState extends State<DoctorDetailPage> {
   }
 
   Future<void> _load() async {
-    final result = await sl<GetDoctorDetailUsecase>()(widget.doctorId);
+    final result = await sl<GetDoctorDetailUsecase>()(
+      widget.doctorId,
+      centerId: widget.centerId,
+    );
     if (!mounted) return;
     result.fold(
       (f) => setState(() {

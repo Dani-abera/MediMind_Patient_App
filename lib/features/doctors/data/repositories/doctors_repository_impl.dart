@@ -33,8 +33,8 @@ class DoctorsRepositoryImpl implements DoctorsRepository {
           ));
 
   @override
-  Future<Either<Failure, Doctor>> getDoctorDetail(String doctorId) =>
-      _wrapSingle(() => _remoteDataSource.getDoctorDetail(doctorId));
+  Future<Either<Failure, Doctor>> getDoctorDetail(String doctorId, {String? centerId}) =>
+      _wrapSingle(() => _remoteDataSource.getDoctorDetail(doctorId, centerId: centerId));
 
   @override
   Future<Either<Failure, List<TimeSlot>>> getDoctorAvailability({

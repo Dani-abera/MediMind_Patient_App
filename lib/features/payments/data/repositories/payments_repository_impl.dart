@@ -56,6 +56,20 @@ class PaymentsRepositoryImpl implements PaymentsRepository {
   }
 
   @override
+  Future<Either<Failure, Payment>> verifyPayment(String txRef) async {
+    try {
+      final model = await _remoteDataSource.verifyPayment(txRef);
+      return Right(model);
+    } on NetworkException catch (e) {
+      return Left(NetworkFailure(message: e.message));
+    } on ServerException catch (e) {
+      return Left(ServerFailure(message: e.message, code: e.code));
+    } catch (e) {
+      return Left(UnexpectedFailure(message: e.toString()));
+    }
+  }
+
+  @override
   Future<Either<Failure, String?>> getReceiptUrl(String paymentId) async {
     try {
       final url = await _remoteDataSource.getReceiptUrl(paymentId);

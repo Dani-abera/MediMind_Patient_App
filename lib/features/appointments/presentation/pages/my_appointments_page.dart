@@ -45,6 +45,14 @@ class _MyAppointmentsPageState extends State<MyAppointmentsPage>
         backgroundColor: AppColors.background,
         surfaceTintColor: Colors.transparent,
         title: const Text('My Appointments'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            onPressed: () => context
+                .read<AppointmentsBloc>()
+                .add(const AppointmentsRefreshed()),
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           labelColor: AppColors.primary,

@@ -1,4 +1,3 @@
-import 'package:chapasdk/chapasdk.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -7,7 +6,9 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/di/service_locator.dart';
-import '../../../payments/domain/usecases/sync_payment_usecase.dart';
+import '../../../../core/utils/chapa_launcher.dart';
+import '../../../payments/domain/entities/payment.dart';
+import '../../../payments/domain/usecases/verify_payment_usecase.dart';
 import '../../../../core/routing/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
@@ -51,13 +52,13 @@ class _BookingSummaryPageState extends State<BookingSummaryPage> {
         if (state.step == BookingStep.payment && state.txRef != null) {
           final amount = (state.serverTotalAmount ?? state.totalAmount)
               .toStringAsFixed(2);
-          Chapa.paymentParameters(
+          final capturedTxRef = state.txRef;
+          launchChapaPayment(
             context: context,
             publicKey: ApiConstants.chapaPublicKey,
             currency: 'ETB',
             amount: amount,
-            email: 'danielabera285@gmail.com',
-            //email: state.patientEmail ?? '',
+            email: state.patientEmail ?? '',
             phone: state.patientPhone ?? '',
             firstName: state.patientFirstName ?? '',
             lastName: state.patientLastName ?? '',
@@ -65,13 +66,9 @@ class _BookingSummaryPageState extends State<BookingSummaryPage> {
             title: 'Appointment Payment',
             desc:
                 'Consultation with Dr. ${state.selectedDoctor?.fullName ?? ''}',
-            nativeCheckout: true,
-            namedRouteFallBack: '',
-            showPaymentMethodsOnGridView: true,
-            availablePaymentMethods: ['mpesa', 'cbebirr', 'telebirr', 'ebirr'],
             onPaymentFinished: (message, reference, amount) {
               if (message == 'paymentSuccessful') {
-                _handlePaymentSuccess(state.paymentId, context);
+                _handlePaymentSuccess(capturedTxRef, context);
               } else if (message == 'paymentCancelled') {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
@@ -258,11 +255,51 @@ class _BookingSummaryPageState extends State<BookingSummaryPage> {
     );
   }
 
-  Future<void> _handlePaymentSuccess(String? paymentId, BuildContext ctx) async {
-    if (paymentId != null) {
-      await sl<SyncPaymentUsecase>()(paymentId);
+  Future<void> _handlePaymentSuccess(String? txRef, BuildContext ctx) async {
+    if (txRef != null) {
+      final result = await sl<VerifyPaymentUsecase>()(txRef);
+      if (!ctx.mounted) return;
+
+      result.fold(
+        // Network / server error — Chapa already confirmed, webhook will settle DB.
+        (failure) {
+          _navigateToSuccess(ctx);
+          ScaffoldMessenger.of(ctx).showSnackBar(
+            const SnackBar(
+              content: Text('Payment received. Confirmation may take a moment.'),
+            ),
+          );
+        },
+        (payment) {
+          if (payment.status == PaymentStatus.failed) {
+            // Explicitly failed — tell the user.
+            ScaffoldMessenger.of(ctx).showSnackBar(
+              const SnackBar(
+                content: Text('Payment failed. Please try again.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          } else {
+            // Completed or still Pending — navigate to success.
+            // Pending means Chapa's backend hasn't settled yet; the webhook will complete it.
+            _navigateToSuccess(ctx);
+            if (payment.status != PaymentStatus.completed) {
+              ScaffoldMessenger.of(ctx).showSnackBar(
+                const SnackBar(
+                  content: Text('Payment is being processed. Your booking is confirmed.'),
+                ),
+              );
+            }
+          }
+        },
+      );
+    } else {
+      if (!ctx.mounted) return;
+      _navigateToSuccess(ctx);
     }
-    if (!ctx.mounted) return;
+  }
+
+  void _navigateToSuccess(BuildContext ctx) {
     ctx.read<BookingFlowBloc>().add(const PaymentCompleted());
     ctx.goNamed(RouteNames.appointmentSuccess);
   }

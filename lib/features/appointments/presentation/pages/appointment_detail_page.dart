@@ -166,7 +166,7 @@ class _AppointmentDetailPageState extends State<AppointmentDetailPage> {
         : null;
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Cancel Appointment?'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -181,11 +181,11 @@ class _AppointmentDetailPageState extends State<AppointmentDetailPage> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
+            onPressed: () => Navigator.of(dialogContext).pop(false),
             child: const Text('No'),
           ),
           TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
             child: Text(
               'Cancel Appointment',
               style: TextStyle(color: AppColors.danger),
