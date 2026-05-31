@@ -36,7 +36,7 @@ class _ProfileCompletionPageState extends State<ProfileCompletionPage> {
   // ProfileLoaded (from ProfileRequested) from triggering navigation.
   bool _submitted = false;
 
-  static const _genders = ['Male', 'Female', 'Other'];
+  static const _genders = ['Male', 'Female', 'Not Mentioned'];
 
   @override
   void initState() {

@@ -47,7 +47,7 @@ class _RegisterSheetContentState extends State<_RegisterSheetContent> {
   DateTime? _selectedDob;
   String _gender = 'Male';
 
-  static const _genders = ['Male', 'Female', 'Other'];
+  static const _genders = ['Male', 'Female', 'Not Mentioned'];
 
   @override
   void dispose() {

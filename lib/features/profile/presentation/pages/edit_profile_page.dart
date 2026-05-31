@@ -22,7 +22,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   DateTime? _dateOfBirth;
   String? _gender;
 
-  static const _genders = ['Male', 'Female', 'Other'];
+  static const _genders = ['Male', 'Female', 'Not Mentioned'];
 
   @override
   void initState() {
