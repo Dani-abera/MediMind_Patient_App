@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../../core/di/service_locator.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../auth/domain/repositories/auth_repository.dart';
+import '../../../auth/presentation/bloc/auth/auth_bloc.dart';
+import '../../../auth/presentation/bloc/auth/auth_event.dart';
 import '../bloc/profile_bloc.dart';
 import '../bloc/profile_event.dart';
 import '../bloc/profile_state.dart';
@@ -101,6 +105,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
             setState(() => _populateFrom(state.user));
           }
           if (state is ProfileSaved) {
+            // Propagate the updated user (with new profileImageUrl) to AuthBloc
+            // so the home avatar and profile header refresh immediately.
+            context.read<AuthBloc>().add(UserLoggedIn(state.user));
+            sl<AuthRepository>().refreshCachedUser(state.user);
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Profile updated successfully')),
             );
