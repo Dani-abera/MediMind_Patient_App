@@ -1,5 +1,8 @@
 # MediMind — Patient Mobile App
 
+> Part of the **MediMind platform** → [Overview](https://github.com/Dani-abera/MediMind-Platform) · [Backend API](https://github.com/Dani-abera/MediMind-Backend-Api) · [Patient App](https://github.com/Dani-abera/MediMind_Patient_App) · [Staff Portal](https://github.com/Dani-abera/MediMind_Portal)
+>
+> 
 > Your Health, Simplified
 
 MediMind is a Flutter-based patient mobile application for the Ethiopian healthcare market. It connects patients with doctors and medical centers, supports appointment booking, AI health predictions, video consultations, and much more.
